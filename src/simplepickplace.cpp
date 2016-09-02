@@ -46,6 +46,7 @@ namespace moveit_simple_actions
     pose_default_r_ = pose_default_;
     if (robot_name_ == "nao")
     {
+      floor_to_base_height_ = -0.7;
       block_size_x_ = 0.01;
       setPose(&pose_default_, 0.2, 0.1, 0.0);
       setPose(&pose_default_r_, 0.2, -0.1, 0.0);
@@ -59,6 +60,7 @@ namespace moveit_simple_actions
     }
     else if (robot_name == "pepper")
     {
+      floor_to_base_height_ = -0.78;
       block_size_x_ = 0.02;
       setPose(&pose_default_, 0.25, 0.2, -0.1);
       setPose(&pose_default_r_, 0.25, -0.2, -0.1);
@@ -363,14 +365,15 @@ namespace moveit_simple_actions
 
           float dist = action->reachGrasp(&blocks_[block_id], support_surface_name_);
           //if not succeded then try with another arm
-          if(dist > 10)
+          if(dist > 10.0f)
           {
             switchArm(action);
             dist = action->reachGrasp(&blocks_[block_id], support_surface_name_);
           }
 
           publishCollisionObject(&blocks_[block_id]);
-          if (dist < 0.2)
+          ROS_INFO_STREAM("Distance to the object =" << dist);
+          if (dist < 0.025f)
           {
             action->attachObject(blocks_[block_id].name_);
             action->poseHandClose();

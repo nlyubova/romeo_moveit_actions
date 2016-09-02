@@ -72,7 +72,7 @@ protected:
   double block_size_y_;
 
   //the shift of the robot's base to teh floor
-  double floor_to_base_height_;
+  float floor_to_base_height_;
 
   //Object processing
   Objprocessing objproc_;

@@ -11,16 +11,15 @@ Action::Action(ros::NodeHandle *nh_, moveit_visual_tools::MoveItVisualToolsPtr &
   verbose_(false),
   attempts_max_(3),
   planning_time_(30.0),
-  //planner_id_("RRTConnectkConfigDefault"),
-  tolerance_min_(0.1),
-  tolerance_step_(0.1),
+  planner_id_("RRTConnectkConfigDefault"),
+  tolerance_min_(0.025), //tested on Pepper, works from 0.03
+  tolerance_step_(0.01),
   max_velocity_scaling_factor_(0.6),
   flag_(FLAG_MOVE),
   arm_(arm),
   end_eff_(arm+"_hand"),
   plan_group_(arm+"_arm"),
-  posture_(robot_name, end_eff_, plan_group_)/*,
-  visual_tools_(visual_tools) //TOCHECK*/
+  posture_(robot_name, end_eff_, plan_group_)
 {
   /*ROS_INFO_STREAM("Arm: " << arm_);
   ROS_INFO_STREAM("End Effector: " << end_eff_);
@@ -32,6 +31,7 @@ Action::Action(ros::NodeHandle *nh_, moveit_visual_tools::MoveItVisualToolsPtr &
   move_group_.reset(new move_group_interface::MoveGroup(plan_group_));
   move_group_->setGoalTolerance(tolerance_min_);
   move_group_->setPlanningTime(planning_time_);
+  move_group_->setPlannerId(planner_id_);
   //move_group_->setNumPlanningAttempts(10);
   /*move_group_->setGoalPositionTolerance(0.1); //0.0001
   move_group_->setGoalOrientationTolerance(0.1); //0.001*/
@@ -321,7 +321,6 @@ bool Action::reachAction(geometry_msgs::Pose pose_target, const std::string surf
   if (!move_group_)
     return false;
 
-  //moveit::planning_interface::MoveGroup::Plan plan;
   current_plan_.reset(new moveit::planning_interface::MoveGroup::Plan());
 
   // Prevent collision with table
@@ -342,7 +341,6 @@ bool Action::reachAction(geometry_msgs::Pose pose_target, const std::string surf
     move_group_->setGoalTolerance(tolerance);//0.05 //TODO to check
     //move_group_->setGoalPositionTolerance(0.07);
     //move_group_->setGoalOrientationTolerance(0.1);
-    //success = move_group_->plan(plan);
     success = move_group_->plan(*current_plan_);
 
     if (verbose_ && success)
@@ -362,7 +360,6 @@ bool Action::reachAction(geometry_msgs::Pose pose_target, const std::string surf
   if (!success)
   {
     move_group_->setApproximateJointValueTarget(pose_target, move_group_->getEndEffectorLink().c_str());
-    //success = move_group_->plan(plan);
     success = move_group_->plan(*current_plan_);
     if (verbose_ && success)
       ROS_INFO_STREAM("Reaching success with approximate joint value");

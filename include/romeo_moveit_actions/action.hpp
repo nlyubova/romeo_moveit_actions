@@ -137,9 +137,23 @@ private:
   ros::ServiceClient client_fk_;
 
   bool verbose_;
+
+  //number of attempts when doing an approximate action
   int attempts_max_;
+
+  //planning time
   double planning_time_;
-  double tolerance_min_, tolerance_step_;
+
+  //planning library
+  std::string planner_id_;
+
+  //minimum tolerance to reach
+  double tolerance_min_;
+
+  //the tolerance step to vary
+  double tolerance_step_;
+
+  //maximum velocity factor
   double max_velocity_scaling_factor_;
 
   int flag_;
