@@ -9,7 +9,13 @@
 
 #include <moveit_msgs/CollisionObject.h>
 
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
+
 #include <object_recognition_msgs/RecognizedObjectArray.h>
+
+typedef shape_msgs::SolidPrimitive sprimitive;
+typedef moveit_msgs::CollisionObject mcollobj;
+typedef moveit::planning_interface::PlanningSceneInterface mscene;
 
 namespace moveit_simple_actions
 {
@@ -31,13 +37,17 @@ public:
             const object_recognition_msgs::ObjectType type,
             ros::Time timestamp=ros::Time::now());
 
-  //update the object pose
+  //! @brief update the object pose
   void updatePose(const geometry_msgs::Pose &start_pose);
 
-  //update the object pose only visually without updating start_pose
+  //! @brief update the object's pose visually but not its start_pose
   void updatePoseVis(const geometry_msgs::Pose &start_pose);
 
-  moveit_msgs::CollisionObject wrapToCollisionObject(const std::vector <shape_msgs::Mesh> &meshes);
+  //! @brief wrap to collision object
+  mcollobj wrapToCollObj(const std::vector <shape_msgs::Mesh> &meshes);
+
+  //! @brief remoev the object
+  void removeBlock(mscene *current_scene);
 
   //object name
   std::string name_;
@@ -53,8 +63,10 @@ public:
 
   //x dimenssion
   double size_x_;
+
   //y dimenssion
   double size_y_;
+
   //z dimenssion
   double size_z_;
 
@@ -65,8 +77,13 @@ public:
   object_recognition_msgs::ObjectType type_;
 
 protected:
+  //the base frame
   std::string base_frame_;
+
+  //the object's shape
   shape_msgs::SolidPrimitive shape_;
+
+  //the object's mesh
   shape_msgs::Mesh mesh_;
 };
 }

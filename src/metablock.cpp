@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "romeo_moveit_actions/metablock.hpp"
+#include "romeo_moveit_actions/toolsForObject.hpp"
 
 namespace moveit_simple_actions
 {
@@ -25,27 +26,27 @@ MetaBlock::MetaBlock(const std::string name,
     start_pose_.orientation.y *= -1;
 
   goal_pose_ = start_pose_;
-  goal_pose_.position.x = 0.5;
-  goal_pose_.position.y = 0.25;
   if (start_pose_.position.y < 0)
-    goal_pose_.position.y *= -1;
+    goal_pose_.position.y -= 0.2;
+  else
+    goal_pose_.position.y += 0.2;
 
   //setshape
-  shape_msgs::SolidPrimitive solidPrimitive;
-  if (shapeType == shape_msgs::SolidPrimitive::CYLINDER)
+  sprimitive solidPrimitive;
+  if (shapeType == sprimitive::CYLINDER)
   {
-    solidPrimitive.type = shape_msgs::SolidPrimitive::CYLINDER;
-    solidPrimitive.dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::CYLINDER>::value);
-    solidPrimitive.dimensions[shape_msgs::SolidPrimitive::CYLINDER_HEIGHT] = size_y;
-    solidPrimitive.dimensions[shape_msgs::SolidPrimitive::CYLINDER_RADIUS] = size_x;
+    solidPrimitive.type = sprimitive::CYLINDER;
+    solidPrimitive.dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<sprimitive::CYLINDER>::value);
+    solidPrimitive.dimensions[sprimitive::CYLINDER_HEIGHT] = size_y;
+    solidPrimitive.dimensions[sprimitive::CYLINDER_RADIUS] = size_x;
   }
   else
   {
-    solidPrimitive.type = shape_msgs::SolidPrimitive::BOX;
-    solidPrimitive.dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<shape_msgs::SolidPrimitive::BOX>::value);
-    solidPrimitive.dimensions[shape_msgs::SolidPrimitive::BOX_X] = size_x;
-    solidPrimitive.dimensions[shape_msgs::SolidPrimitive::BOX_Y] = size_y;
-    solidPrimitive.dimensions[shape_msgs::SolidPrimitive::BOX_Z] = size_z;
+    solidPrimitive.type = sprimitive::BOX;
+    solidPrimitive.dimensions.resize(geometric_shapes::SolidPrimitiveDimCount<sprimitive::BOX>::value);
+    solidPrimitive.dimensions[sprimitive::BOX_X] = size_x;
+    solidPrimitive.dimensions[sprimitive::BOX_Y] = size_y;
+    solidPrimitive.dimensions[sprimitive::BOX_Z] = size_z;
   }
   shape_ = solidPrimitive;
 
@@ -53,7 +54,7 @@ MetaBlock::MetaBlock(const std::string name,
   collObj_.header.stamp = ros::Time::now();
   collObj_.header.frame_id = base_frame_;
   collObj_.id = name_;
-  collObj_.operation = moveit_msgs::CollisionObject::ADD;
+  collObj_.operation = mcollobj::ADD;
   collObj_.primitives.resize(1);
   if (shape_.dimensions.size() > 0)
     collObj_.primitives[0] = shape_;
@@ -77,7 +78,7 @@ MetaBlock::MetaBlock(const std::string name,
   start_pose_.orientation.w = 0.0;
 
   goal_pose_ = start_pose_;
-  goal_pose_.position.x = 0.4;//0.47; //0.5;//
+  goal_pose_.position.x = 0.4;
   goal_pose_.position.y = 0.3;
   goal_pose_.position.z = -0.05;
   goal_pose_.orientation.x = -1.0;
@@ -104,7 +105,7 @@ void MetaBlock::updatePoseVis(const geometry_msgs::Pose &start_pose)
     collObj_.primitive_poses[0] = start_pose;
 }
 
-moveit_msgs::CollisionObject MetaBlock::wrapToCollisionObject(const std::vector <shape_msgs::Mesh> &meshes)
+mcollobj MetaBlock::wrapToCollObj(const std::vector <shape_msgs::Mesh> &meshes)
 {
   collObj_.header.stamp = ros::Time::now();
 
@@ -112,13 +113,22 @@ moveit_msgs::CollisionObject MetaBlock::wrapToCollisionObject(const std::vector 
   {
     collObj_.meshes.push_back(meshes[0]);
     collObj_.mesh_poses.push_back(start_pose_);
-    //ROS_INFO_STREAM("-- mesh found: msg_obj_collision.meshes.size()=" << msg_obj_collision.meshes.size());
+    /* ROS_INFO_STREAM("-- mesh found: msg_obj_collision.meshes.size()="
+     * << msg_obj_collision.meshes.size()); */
   }
   else
-    if (collObj_.primitive_poses.size() >0)
+    if (collObj_.primitive_poses.size() > 0)
       collObj_.primitive_poses[0] = start_pose_;
 
   return collObj_;
 }
 
+void MetaBlock::removeBlock(mscene *current_scene)
+{
+  // Remove/Add collision object
+  std::vector<std::string> objects_id;
+  objects_id.resize(1);
+  objects_id[0] = name_;
+  current_scene->removeCollisionObjects(objects_id);
+}
 }
