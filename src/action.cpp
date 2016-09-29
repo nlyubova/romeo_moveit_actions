@@ -54,9 +54,9 @@ Action::Action(ros::NodeHandle *nh_, moveit_visual_tools::MoveItVisualToolsPtr &
     for (int i=0; i<grasp_data_.pre_grasp_posture_.joint_names.size(); ++i)
     {
       if ((grasp_data_.pre_grasp_posture_.joint_names[i] == "RHand") || (grasp_data_.pre_grasp_posture_.joint_names[i] == "LHand"))
-        posture_.initHandPoseOpen(grasp_data_.pre_grasp_posture_.points[0].positions[i]);
+        posture_.initHandPose(grasp_data_.pre_grasp_posture_.points[0].positions[i], 0);
       if ((grasp_data_.grasp_posture_.joint_names[i] == "RHand") || (grasp_data_.grasp_posture_.joint_names[i] == "LHand"))
-        posture_.initHandPoseClose(grasp_data_.grasp_posture_.points[0].positions[i]);
+        posture_.initHandPose(grasp_data_.grasp_posture_.points[0].positions[i], 1);
     }
 
   // Load Grasp generator
