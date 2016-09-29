@@ -12,12 +12,6 @@
 namespace moveit_simple_actions
 {
 
-  void swapPoses(geometry_msgs::Pose *pose1, geometry_msgs::Pose *pose2){
-    geometry_msgs::Pose temp = *pose1;
-    pose1 = pose2;
-    *pose2 = temp;
-  }
-
   SimplePickPlace::SimplePickPlace(const std::string robot_name,
                                    double test_step,
                                    const double x_min,
@@ -39,7 +33,7 @@ namespace moveit_simple_actions
       floor_to_base_height_(-1.0),
       env_shown_(false),
       objproc_(&nh_priv_),
-      evaluation_(verbose_, base_frame_)
+      evaluation_(&nh_, verbose_, base_frame_)
   {
     setPose(&pose_zero_, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0);
     pose_default_ = pose_zero_;
@@ -138,8 +132,11 @@ namespace moveit_simple_actions
       env_shown_ = true;
     }
 
-    evaluation_.init(test_step, block_size_x_, block_size_y_, floor_to_base_height_,
-                     x_min_, x_max_, y_min_, y_max_, z_min_, z_max_);
+    evaluation_.init(block_size_x_,
+                     block_size_y_,
+                     floor_to_base_height_,
+                     action_left_,
+                     action_right_);
 
     printTutorial(robot_name);
 
@@ -426,10 +423,6 @@ namespace moveit_simple_actions
                                 &pub_obj_pose_,
                                 &pub_obj_poses_,
                                 &pub_obj_moveit_,
-                                visual_tools_,
-                                action_left_,
-                                action_right_,
-                                &blocks_surfaces_,
                                 true);
         }
         else if (actionName == "test_reach") //test the goal space for reaching
@@ -439,10 +432,6 @@ namespace moveit_simple_actions
                                 &pub_obj_pose_,
                                 &pub_obj_poses_,
                                 &pub_obj_moveit_,
-                                visual_tools_,
-                                action_left_,
-                                action_right_,
-                                &blocks_surfaces_,
                                 false);
         }
         else if (actionName == "set_table_height") // set table height
@@ -544,7 +533,8 @@ namespace moveit_simple_actions
                             << it->orientation.x << " " << it->orientation.y << " " << it->orientation.z << " " << it->orientation.w << "]");
           }
         }
-        else if (actionName == "stat_evaluation") //key 'stat', print the statistics on grasps
+        //print the statistics on grasps
+        else if (actionName == "stat_evaluation")
         {
           evaluation_.printStat();
         }
@@ -614,8 +604,7 @@ namespace moveit_simple_actions
       if (msg->meshes.size() > 0)
       {
         geometry_msgs::Pose pose = msg->mesh_poses[0];
-        if ((pose.position.x < x_max_) && (pose.position.x > x_min_)
-            && (pose.position.z < z_max_) && (pose.position.z > z_min_))
+        if (evaluation_.inWorkSpace(pose))
         {
           //check if exists
           int idx = findObj(blocks_, msg->id);

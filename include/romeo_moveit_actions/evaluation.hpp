@@ -6,6 +6,9 @@
 #include "romeo_moveit_actions/metablock.hpp"
 #include "romeo_moveit_actions/action.hpp"
 
+typedef shape_msgs::SolidPrimitive sprimitive;
+typedef moveit_visual_tools::MoveItVisualToolsPtr mvistools;
+
 namespace moveit_simple_actions
 {
 
@@ -13,59 +16,75 @@ class Evaluation
 {
 public:
 
-  Evaluation(const bool &verbose, const std::string &base_frame);
+  Evaluation(ros::NodeHandle *nh,
+             const bool &verbose,
+             const std::string &base_frame);
 
-  void init(const double &test_step,
-            const double &block_size_x,
+  //! @brief initialization
+  void init(const double &block_size_x,
             const double &block_size_y,
             const double floor_to_base_height,
-            const double &x_min,
-            const double &x_max,
-            const double &y_min,
-            const double &y_max,
-            const double &z_min,
-            const double &z_max);
+            Action *action_left,
+            Action *action_right);
 
+  //! @brief testing grasping or approximate grasping
   void testReach(ros::NodeHandle &nh,
                  ros::Publisher *pub_obj_pose,
                  ros::Publisher *pub_obj_poses,
                  ros::Publisher *pub_obj_moveit,
-                 moveit_visual_tools::MoveItVisualToolsPtr visual_tools,
-                 Action *action_left,
-                 Action *action_right,
-                 std::vector<MetaBlock> *blocks_surfaces,
                  const bool pickVsReach,
                  const bool test_poses_rnd=false);
 
+  //! @brief print the successfully reached positions
   void printStat();
 
+  //! @brief check if the pose is within the working space (close enough)
+  bool inWorkSpace(geometry_msgs::Pose pose);
+
 protected:
-  geometry_msgs::PoseArray generatePosesGrid(std::vector<MetaBlock> &blocks_test);
+  //! @brief generate poses to test regularly
+  geometry_msgs::PoseArray generatePosesGrid();
 
-  geometry_msgs::PoseArray generatePosesRnd(const int poses_nbr,
-                                            std::vector<MetaBlock> &blocks_test);
+  //! @brief generate poses to test randomly
+  geometry_msgs::PoseArray generatePosesRnd(const int poses_nbr);
 
-  int testReachWithGenSingleHand(Action *action,
-                                 std::vector<MetaBlock> *blocks_surfaces,
-                                 ros::Publisher *pub_obj_pose,
-                                 ros::Publisher *pub_obj_poses,
-                                 ros::Publisher *pub_obj_moveit,
-                                 moveit_visual_tools::MoveItVisualToolsPtr visual_tools,
-                                 const bool pickVsReach,
-                                 const int attempts_nbr,
-                                 const double planning_time,
-                                 geometry_msgs::PoseArray &msg_poses_validated);
+  //! @brief testing a single hand
+  int testReachSingleHand(Action *action,
+                          ros::Publisher *pub_obj_pose,
+                          ros::Publisher *pub_obj_poses,
+                          ros::Publisher *pub_obj_moveit,
+                          const bool pickVsReach,
+                          geometry_msgs::PoseArray &poses_validated);
 
+  //! @brief print the positions
+  void printStat(const geometry_msgs::PoseArray &poses,
+                 const int &targets_nbr);
+
+  //pointer to the action class for the left arm
+  Action *action_left_;
+
+  //pointer to the action class for the right arm
+  Action *action_right_;
+
+  //verbose or not
   bool verbose_;
 
   //robot's base_frame
   std::string base_frame_;
 
-  //the interval to test the working space
+  //the step to test the working space
   double test_step_;
 
-  //the size of a default object
+  //number of attempts
+  int attempts_nbr_;
+
+  //planning time
+  double planning_time_;
+
+  //the size X of a default object
   double block_size_x_;
+
+  //the size Y of a default object
   double block_size_y_;
 
   //the shift of the robot's base to teh floor
@@ -79,11 +98,20 @@ protected:
   double z_min_;
   double z_max_;
 
+  //the default zero pose
   geometry_msgs::Pose pose_zero_;
 
   //successfully reached positions
-  std::vector <geometry_msgs::Pose> stat_poses_success_;
+  geometry_msgs::PoseArray poses_success_;
 
+  //the total targets number
+  int targets_nbr_;
+
+  //default object to grasp
+  MetaBlock *block_;
+
+  //default table
+  MetaBlock *table_;
 };
 }
 #endif // EVALUATION_HPP
