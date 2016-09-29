@@ -16,9 +16,6 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
 )
 
-find_package(Boost REQUIRED system thread date_time system filesystem)
-find_package(Boost QUIET COMPONENTS program_options)
-
 catkin_package(
   INCLUDE_DIRS include
   CATKIN_DEPENDS roscpp geometry_msgs geometric_shapes std_msgs moveit_ros_planning moveit_ros_planning_interface moveit_visual_tools moveit_simple_grasps object_recognition_msgs
@@ -28,9 +25,7 @@ catkin_package(
 ## Build ##
 ###########
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
-
-link_directories(${Boost_LIBRARY_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS})
 
 set(SRC
   src/main.cpp
@@ -57,6 +52,4 @@ add_executable(${PROJECTNAME} ${SRC})
 
 target_link_libraries(${PROJECTNAME}
   ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES})
-
 )

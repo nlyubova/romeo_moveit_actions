@@ -11,22 +11,62 @@
 
 namespace moveit_simple_actions
 {
+  void SimplePickPlace::loadParams()
+  {
+    setPose(&pose_zero_, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0);
+    pose_default_ = pose_zero_;
+    pose_default_r_ = pose_default_;
 
-  SimplePickPlace::SimplePickPlace(const std::string robot_name,
-                                   double test_step,
-                                   const double x_min,
-                                   const double x_max,
-                                   const double y_min,
-                                   const double y_max,
-                                   const double z_min,
-                                   const double z_max,
-                                   const std::string left_arm_name,
-                                   const std::string right_arm_name,
-                                   const bool verbose):
+    nh_.getParam("robot_name", robot_name_);
+    nh_.getParam("verbose", verbose_);
+
+    if (robot_name_ == "nao")
+    {
+      floor_to_base_height_ = -0.325;
+      block_size_x_ = 0.01;
+      setPose(&pose_default_, 0.2, 0.1, 0.0);
+      setPose(&pose_default_r_, 0.2, -0.1, 0.0);
+    }
+    else if (robot_name_ == "pepper")
+    {
+      floor_to_base_height_ = -0.78;
+      block_size_x_ = 0.02;
+      setPose(&pose_default_, 0.25, 0.2, -0.1);
+      setPose(&pose_default_r_, 0.25, -0.2, -0.1);
+    }
+    else if (robot_name_ == "romeo")
+    {
+      block_size_x_ = 0.03;
+      setPose(&pose_default_, 0.44, 0.15, -0.1);
+      setPose(&pose_default_r_, 0.49, -0.25, -0.1);
+    }
+  }
+
+  MetaBlock SimplePickPlace::createTable()
+  {
+    //create a table
+    double height = -floor_to_base_height_ + (pose_default_.position.z-block_size_y_/2.0);
+    double width = std::fabs(pose_default_r_.position.y*2.0) + block_size_x_/2.0;
+    double depth = 0.35;
+    geometry_msgs::Pose pose;
+    setPose(&pose,
+            pose_default_.position.x - block_size_x_/2.0 + depth/2.0,
+            0.0,
+            floor_to_base_height_ + height/2.0);
+
+    MetaBlock table("table",
+                    pose,
+                    shape_msgs::SolidPrimitive::BOX,
+                    depth,
+                    width,
+                    height);
+    return table;
+  }
+  SimplePickPlace::SimplePickPlace():
       nh_("~"),
       nh_priv_(""),
-      robot_name_(robot_name),
-      verbose_(verbose),
+      robot_name_("romeo"),
+      verbose_(false),
       base_frame_("odom"),
       block_size_x_(0.03),
       block_size_y_(0.13),
@@ -35,67 +75,19 @@ namespace moveit_simple_actions
       objproc_(&nh_priv_),
       evaluation_(&nh_, verbose_, base_frame_)
   {
-    setPose(&pose_zero_, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0);
-    pose_default_ = pose_zero_;
-    pose_default_r_ = pose_default_;
-    if (robot_name_ == "nao")
-    {
-      floor_to_base_height_ = -0.7;
-      block_size_x_ = 0.01;
-      setPose(&pose_default_, 0.2, 0.1, 0.0);
-      setPose(&pose_default_r_, 0.2, -0.1, 0.0);
-      test_step = (test_step==0.0)?0.03:test_step;
-      x_min_ = (x_min==0.0)?0.1:x_min;
-      x_max_ = (x_max==0.0)?0.21:x_max;
-      y_min_ = (y_min==0.0)?0.12:y_min;
-      y_max_ = (y_max==0.0)?0.24:y_max;
-      z_min_ = (z_min==0.0)?-0.07:z_min;
-      z_max_ = (z_max==0.0)?0.05:z_max;
-    }
-    else if (robot_name == "pepper")
-    {
-      floor_to_base_height_ = -0.78;
-      block_size_x_ = 0.02;
-      setPose(&pose_default_, 0.25, 0.2, -0.1);
-      setPose(&pose_default_r_, 0.25, -0.2, -0.1);
-      test_step = (test_step==0.0)?0.04:test_step;
-      x_min_ = (x_min==0.0)?0.2:x_min;
-      x_max_ = (x_max==0.0)?0.4:x_max;
-      y_min_ = (y_min==0.0)?0.12:y_min;
-      y_max_ = (y_max==0.0)?0.24:y_max;
-      z_min_ = (z_min==0.0)?-0.13:z_min;
-      z_max_ = (z_max==0.0)?0.0:z_max;
-    }
-    else if (robot_name_ == "romeo")
-    {
-      setPose(&pose_default_, 0.44, 0.15, -0.1);
-      setPose(&pose_default_r_, 0.49, -0.25, -0.1);
-      test_step = (test_step==0.0)?0.02:test_step;
-      x_min_ = (x_min==0.0)?0.38:x_min;
-      x_max_ = (x_max==0.0)?0.5:x_max;
-      y_min_ = (y_min==0.0)?0.12:y_min;
-      y_max_ = (y_max==0.0)?0.24:y_max;
-      z_min_ = (z_min==0.0)?-0.17:z_min;
-      z_max_ = (z_max==0.0)?-0.08:z_max;
-    }
-    //create a table
-    double table_height = -floor_to_base_height_ + (pose_default_.position.z-block_size_y_/2.0);
-    double table_width = std::fabs(pose_default_r_.position.y*2.0) + block_size_x_/2.0;
-    double table_depth = 0.35;
-    geometry_msgs::Pose table_pose;
-    setPose(&table_pose, pose_default_.position.x-block_size_x_/2.0 + table_depth/2.0, 0.0,floor_to_base_height_ + table_height/2.0);
+    loadParams();
+
     //if (robot_name_ == "romeo")
     {
-      blocks_surfaces_.push_back(MetaBlock("table", table_pose, shape_msgs::SolidPrimitive::BOX, 0.35, table_width, table_height));
-      support_surface_name_ = blocks_surfaces_.front().name_;
+      blocks_surfaces_.push_back(createTable());
+      support_surface_ = blocks_surfaces_.back().name_;
     }
-    env_shown_ = false;
 
     // objects related initialization
     sub_obj_coll_ = nh_.subscribe<moveit_msgs::CollisionObject>("/collision_object", 10, &SimplePickPlace::getCollisionObjects, this);
+
     pub_obj_poses_ = nh_.advertise<geometry_msgs::PoseArray>("/obj_poses", 10);
     pub_obj_pose_ = nh_.advertise<geometry_msgs::PoseStamped>("/pose_current", 10);
-
     pub_obj_moveit_ = nh_.advertise<moveit_msgs::CollisionObject>("/collision_object", 1000);
 
     // Load the Robot Viz Tools for publishing to rviz
@@ -138,9 +130,7 @@ namespace moveit_simple_actions
                      action_left_,
                      action_right_);
 
-    printTutorial(robot_name);
-
-    startRoutine();
+    printTutorial(robot_name_);
   }
 
 
@@ -168,7 +158,7 @@ namespace moveit_simple_actions
         false;
   }
 
-  bool SimplePickPlace::startRoutine()
+  void SimplePickPlace::run()
   {
     int block_id = -1;
     int hand_id = 0; //0: any, 1: left, 2:right

@@ -15,21 +15,17 @@ namespace moveit_simple_actions
 class SimplePickPlace
 {
 public:
-  SimplePickPlace(const std::string robot_name,
-                  const double test_step,
-                  const double x_min,
-                  const double x_max,
-                  const double y_min,
-                  const double y_max,
-                  const double z_min,
-                  const double z_max,
-                  const std::string left_arm_name,
-                  const std::string right_arm_name,
-                  const bool verbose);
+  SimplePickPlace();
+
+  //the main cycle
+  void run();
 
 protected:
-  //main cycle
-  bool startRoutine();
+  //load params
+  void loadParams();
+
+  //create a table object
+  MetaBlock createTable();
 
   //switch between the left and right arms
   void switchArm(Action *action_now);
