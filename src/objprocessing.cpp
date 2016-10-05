@@ -60,9 +60,12 @@ bool Objprocessing::triggerObjectDetection()
   {
     try
     {
-      ROS_INFO_STREAM("Waiting for the Object recognition client");
-      waitForAction(object_recognition_client_, *nh_, ros::Duration(5, 0), OBJECT_RECOGNITION_ACTION);
-      ROS_INFO_STREAM("Object recognition client is ready");
+      ROS_DEBUG("Waiting for the Object recognition client");
+      waitForAction(object_recognition_client_,
+                    *nh_,
+                    ros::Duration(5, 0),
+                    OBJECT_RECOGNITION_ACTION);
+      ROS_DEBUG("Object recognition client is ready");
       found_object_recognition_client_ = true;
     }
     catch(std::runtime_error &ex)
@@ -78,12 +81,14 @@ bool Objprocessing::triggerObjectDetection()
     object_recognition_client_->sendGoal(goal);
     if (!object_recognition_client_->waitForResult())
     {
-      ROS_INFO_STREAM("Object recognition client returned early");
+      ROS_DEBUG_STREAM("Object recognition client returned early");
       return false;
     }
     if (object_recognition_client_->getState() != actionlib::SimpleClientGoalState::SUCCEEDED)
     {
-      ROS_WARN_STREAM("Fail: " << object_recognition_client_->getState().toString() << ": " << object_recognition_client_->getState().getText());
+      ROS_DEBUG_STREAM("Fail: "
+                       << object_recognition_client_->getState().toString() << ":"
+                       << object_recognition_client_->getState().getText());
       return true;
     }
   }

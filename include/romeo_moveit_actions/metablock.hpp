@@ -24,7 +24,7 @@ class MetaBlock
 {
 public:
   MetaBlock(const std::string name,
-            const geometry_msgs::Pose start_pose,
+            const geometry_msgs::Pose pose,
             const uint shapeType,
             const double size_x,
             const double size_y,
@@ -32,16 +32,16 @@ public:
             ros::Time timestamp=ros::Time::now());
 
   MetaBlock(const std::string name,
-            const geometry_msgs::Pose start_pose,
+            const geometry_msgs::Pose pose,
             const shape_msgs::Mesh mesh,
             const object_recognition_msgs::ObjectType type,
             ros::Time timestamp=ros::Time::now());
 
   //! @brief update the object pose
-  void updatePose(const geometry_msgs::Pose &start_pose);
+  void updatePose(const geometry_msgs::Pose &pose);
 
-  //! @brief update the object's pose visually but not its start_pose
-  void updatePoseVis(const geometry_msgs::Pose &start_pose);
+  //! @brief update the object's pose visually but not its pose
+  void updatePoseVis(const geometry_msgs::Pose &pose);
 
   //! @brief wrap to collision object
   mcollobj wrapToCollObj(const std::vector <shape_msgs::Mesh> &meshes);
@@ -49,11 +49,15 @@ public:
   //! @brief remoev the object
   void removeBlock(mscene *current_scene);
 
+  //! @brief update the pose and publish
+  void updatePose(ros::Publisher *pub_obj_moveit,
+                  const geometry_msgs::Pose &pose);
+
   //object name
   std::string name_;
 
   //the current position
-  geometry_msgs::Pose start_pose_;
+  geometry_msgs::Pose pose_;
 
   //the goal position
   geometry_msgs::Pose goal_pose_;
@@ -73,13 +77,13 @@ public:
   //timestamp of creation
   ros::Time timestamp_;
 
+  //the base frame
+  std::string base_frame_;
+
   //corresponding object type in DB
   object_recognition_msgs::ObjectType type_;
 
 protected:
-  //the base frame
-  std::string base_frame_;
-
   //the object's shape
   shape_msgs::SolidPrimitive shape_;
 

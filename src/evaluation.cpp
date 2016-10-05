@@ -125,12 +125,12 @@ geometry_msgs::PoseArray Evaluation::generatePosesGrid()
     for (double z=z_min_; z<=z_max_; z+=test_step_)
       for (double x=x_min_; x<=x_max_; x+=test_step_)
       {
-        block.start_pose_.position.x = x;
-        block.start_pose_.position.y = y;
-        block.start_pose_.position.z = z;
+        block.pose_.position.x = x;
+        block.pose_.position.y = y;
+        block.pose_.position.z = z;
         blocks_test.push_back(block);
 
-        poses.poses.push_back(block.start_pose_);
+        poses.poses.push_back(block.pose_);
         std::cout << x << " " << y << " " << z << std::endl;
         ++count;
       }
@@ -141,12 +141,12 @@ geometry_msgs::PoseArray Evaluation::generatePosesGrid()
     for (double z=z_min_; z<=z_max_; z+=test_step_)
       for (double x=x_min_; x<=x_max_; x+=test_step_)
       {
-        block.start_pose_.position.x = x;
-        block.start_pose_.position.y = y;
-        block.start_pose_.position.z = z;
+        block.pose_.position.x = x;
+        block.pose_.position.y = y;
+        block.pose_.position.z = z;
         blocks_test.push_back(block);
 
-        poses.poses.push_back(block.start_pose_);
+        poses.poses.push_back(block.pose_);
         std::cout << x << " " << y << " " << z << std::endl;
         ++count;
       }
@@ -169,7 +169,7 @@ geometry_msgs::PoseArray Evaluation::generatePosesRnd(const int poses_nbr)
     pose.position.y = float(rand() % 90)/100.0f - 0.45;
     pose.position.z = -0.23f + (float(rand() % 230)/1000.0f);
     blocks_test.push_back(MetaBlock("BlockTest", pose, sprimitive::CYLINDER, block_size_x_, block_size_y_, 0.0));
-    poses.poses.push_back(blocks_test.back().start_pose_);
+    poses.poses.push_back(blocks_test.back().pose_);
     ++count;
   }
   return poses;
@@ -250,15 +250,15 @@ int Evaluation::testReachSingleHand(Action *action,
   {
     //update the table height
     table_->size_z_ = -floor_to_base_height_ + (z-block_size_y_/2.0);
-    table_->start_pose_.position.z = floor_to_base_height_ + table_->size_z_/2.0;
+    table_->pose_.position.z = floor_to_base_height_ + table_->size_z_/2.0;
 
     for (double y=y_min; y<=y_max; y+=y_step)
       for (double x=x_min_; x<=x_max_; x+=test_step_)
       {
         ++count_total;
 
-        table_->start_pose_.position.x = x - block_size_x_/2.0 + table_->size_x_/2.0,
-        table_->updatePose(table_->start_pose_);
+        table_->pose_.position.x = x - block_size_x_/2.0 + table_->size_x_/2.0,
+        table_->updatePose(table_->pose_);
         std::vector<std::string> objects;
         objects.push_back(table_->name_);
         current_scene.removeCollisionObjects(objects);
@@ -297,7 +297,7 @@ int Evaluation::testReachSingleHand(Action *action,
           //reset object, at first detach it
           action->detachObject(block.name_);
 
-          poses_success.poses.push_back(block.start_pose_);
+          poses_success.poses.push_back(block.pose_);
           pub_obj_poses->publish(poses_success);
         }
         //return the hand
@@ -356,6 +356,16 @@ bool Evaluation::inWorkSpace(geometry_msgs::Pose pose)
       && (pose.position.z < z_max_) && (pose.position.z > z_min_))
     res = true;
   return res;
+}
+
+float Evaluation::getXmax()
+{
+  return x_max_;
+}
+
+float Evaluation::getYmax()
+{
+  return y_max_;
 }
 
 }

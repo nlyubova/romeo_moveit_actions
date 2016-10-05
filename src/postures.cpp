@@ -143,11 +143,9 @@ bool Posture::poseHand(const std::string &end_eff,
 {
   //set the end-effector first
   goToPose(end_eff, &pose_hand_[0]);
-
   bool res = false;
   if (pose_id < pose_arm_.size())
     res = goToPose(group, &pose_arm_[pose_id]);
-
   return res;
 }
 
