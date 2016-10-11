@@ -69,6 +69,9 @@ MetaBlock::MetaBlock(const std::string name,
           ros::Time timestamp):
     name_(name),
     pose_(pose),
+    size_x_(0.01),
+    size_y_(0.01),
+    size_z_(0.01),
     timestamp_(timestamp),
     base_frame_("odom")
 {
@@ -90,6 +93,16 @@ MetaBlock::MetaBlock(const std::string name,
 
   mesh_ = mesh;
   type_ = type;
+
+  //create collision object
+  collObj_.header.stamp = ros::Time::now();
+  collObj_.header.frame_id = base_frame_;
+  collObj_.id = name_;
+  collObj_.operation = mcollobj::ADD;
+  collObj_.meshes.resize(1);
+  collObj_.meshes[0] = mesh;
+  collObj_.mesh_poses.resize(1);
+  collObj_.mesh_poses[0] = pose_;
 }
 
 void MetaBlock::updatePose(const geometry_msgs::Pose &pose)
@@ -105,24 +118,6 @@ void MetaBlock::updatePoseVis(const geometry_msgs::Pose &pose)
     collObj_.primitive_poses[0] = pose;
 }
 
-mcollobj MetaBlock::wrapToCollObj(const std::vector <shape_msgs::Mesh> &meshes)
-{
-  collObj_.header.stamp = ros::Time::now();
-
-  if (!meshes.empty())
-  {
-    collObj_.meshes.push_back(meshes[0]);
-    collObj_.mesh_poses.push_back(pose_);
-    /* ROS_INFO_STREAM("-- mesh found: msg_obj_collision.meshes.size()="
-     * << msg_obj_collision.meshes.size()); */
-  }
-  else
-    if (collObj_.primitive_poses.size() > 0)
-      collObj_.primitive_poses[0] = pose_;
-
-  return collObj_;
-}
-
 void MetaBlock::removeBlock(mscene *current_scene)
 {
   // Remove/Add collision object
@@ -132,10 +127,56 @@ void MetaBlock::removeBlock(mscene *current_scene)
   current_scene->removeCollisionObjects(objects_id);
 }
 
-void MetaBlock::updatePose(ros::Publisher *pub_obj_moveit,
+void MetaBlock::publishBlock(mscene *current_scene)
+{
+  std::vector<moveit_msgs::CollisionObject> coll_objects;
+  coll_objects.push_back(collObj_);
+  current_scene->addCollisionObjects(coll_objects);
+  sleep(0.5);
+}
+
+void MetaBlock::updatePose(mscene *current_scene,
                            const geometry_msgs::Pose &pose)
 {
   updatePose(pose);
-  pub_obj_moveit->publish(collObj_);
+
+  //pub_obj_moveit->publish(collObj_);
+  std::vector<moveit_msgs::CollisionObject> coll_objects;
+  coll_objects.push_back(collObj_);
+  current_scene->addCollisionObjects(coll_objects);
+  sleep(0.5);
+}
+
+tf::Stamped<tf::Pose> MetaBlock::getTransform(tf::TransformListener *listener)
+{
+  tf::Stamped<tf::Pose> pose_to_robot;
+
+  tf::Stamped<tf::Pose> tf_obj(
+        tf::Pose(
+          tf::Quaternion(pose_.orientation.x,
+                         pose_.orientation.y,
+                         pose_.orientation.z,
+                         pose_.orientation.w),
+          tf::Vector3(pose_.position.x,
+                      pose_.position.y,
+                      pose_.position.z)),
+      ros::Time(0), "odom");
+
+  //the the pose
+  try
+  {
+    listener->transformPose("base_link", tf_obj, pose_to_robot);
+  }
+  catch (tf::TransformException ex)
+  {
+   ROS_ERROR("%s",ex.what());
+  }
+
+  ROS_INFO_STREAM("The pose to the object "
+                 << " " << pose_to_robot.getOrigin().x()
+                 << " " << pose_to_robot.getOrigin().y()
+                 << " " << pose_to_robot.getOrigin().z()
+                 );
+  return pose_to_robot;
 }
 }

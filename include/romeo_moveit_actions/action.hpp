@@ -118,7 +118,7 @@ public:
 
   //! @brief check if the correct arm is used
   bool checkArm(const int &hand_id,
-                const double &obj_y=0);
+                const bool &is_close=true);
 
   //! @brief release the object
   void releaseObject(MetaBlock *block);
@@ -226,6 +226,9 @@ private:
 
   //the current attached object
   std::string object_attached_;
+
+  //the transform listener
+  tf::TransformListener listener_;
 };
 
 

@@ -5,6 +5,9 @@
 #include <ros/ros.h>
 
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <tf/transform_listener.h>
+
 #include <geometric_shapes/solid_primitive_dims.h>
 
 #include <moveit_msgs/CollisionObject.h>
@@ -23,6 +26,7 @@ namespace moveit_simple_actions
 class MetaBlock
 {
 public:
+  //! @brief shape-based constructor
   MetaBlock(const std::string name,
             const geometry_msgs::Pose pose,
             const uint shapeType,
@@ -31,6 +35,7 @@ public:
             const double size_z,
             ros::Time timestamp=ros::Time::now());
 
+  //! @brief mesh-based constructor
   MetaBlock(const std::string name,
             const geometry_msgs::Pose pose,
             const shape_msgs::Mesh mesh,
@@ -43,15 +48,18 @@ public:
   //! @brief update the object's pose visually but not its pose
   void updatePoseVis(const geometry_msgs::Pose &pose);
 
-  //! @brief wrap to collision object
-  mcollobj wrapToCollObj(const std::vector <shape_msgs::Mesh> &meshes);
+  //! @brief update the pose and publish
+  void updatePose(mscene *current_scene,
+                  const geometry_msgs::Pose &pose);
 
-  //! @brief remoev the object
+  //! @brief remove the collision object
   void removeBlock(mscene *current_scene);
 
-  //! @brief update the pose and publish
-  void updatePose(ros::Publisher *pub_obj_moveit,
-                  const geometry_msgs::Pose &pose);
+  //! @brief publish the collision object
+  void publishBlock(mscene *current_scene);
+
+  //! @brief get the transform to base_link
+  tf::Stamped<tf::Pose> getTransform(tf::TransformListener *listener);
 
   //object name
   std::string name_;

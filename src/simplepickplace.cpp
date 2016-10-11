@@ -5,6 +5,8 @@
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <moveit/move_group_interface/move_group.h>
 
+//#include <move_base_msgs/MoveBaseAction.h>
+
 #include "romeo_moveit_actions/simplepickplace.hpp"
 #include "romeo_moveit_actions/tools.hpp"
 #include "romeo_moveit_actions/toolsForObject.hpp"
@@ -79,12 +81,6 @@ namespace moveit_simple_actions
   {
     loadParams();
 
-    if (robot_name_ == "romeo")
-    {
-      blocks_surfaces_.push_back(createTable());
-      support_surface_ = blocks_surfaces_.back().name_;
-    }
-
     // objects related initialization
     sub_obj_coll_ = nh_.subscribe<moveit_msgs::CollisionObject>("/collision_object", 100, &SimplePickPlace::getCollisionObjects, this);
 
@@ -118,7 +114,7 @@ namespace moveit_simple_actions
     msg_obj_pose_.header.frame_id = action_left_->getBaseLink();
     msg_obj_poses_.header.frame_id = action_left_->getBaseLink();
 
-    //Move the robots parts to init positions
+    //move the robots parts to init positions
     //if (promptUserQuestion("Should I move the head to look down?"))
       //action_left_->poseHeadDown();
 
@@ -127,14 +123,21 @@ namespace moveit_simple_actions
     action_right_->poseHand(1);
     ros::Duration(1.0).sleep();
 
-    // Remove table and publish gain
-    std::vector<std::string> objects = getObjectsOldList(&blocks_surfaces_);
-    current_scene_.removeCollisionObjects(objects);
-    sleep(1.0);
-    if (blocks_surfaces_.size() > 0)
+    //create a possible table
+    blocks_surfaces_.push_back(createTable());
+    support_surface_ = blocks_surfaces_.back().name_;
+    //remove surfaces and publish again
+    if (robot_name_ == "romeo")
     {
-      pub_obj_moveit_.publish(blocks_surfaces_.back().collObj_);
-      env_shown_ = true;
+      std::vector<std::string> objects = getObjectsOldList(&blocks_surfaces_);
+      current_scene_.removeCollisionObjects(objects);
+      sleep(1.0);
+      //add a collision block
+      if (blocks_surfaces_.size() > 0)
+      {
+        blocks_surfaces_.back().publishBlock(&current_scene_);
+        env_shown_ = true;
+      }
     }
 
     evaluation_.init(block_size_x_,
@@ -165,7 +168,24 @@ namespace moveit_simple_actions
     blocks_.push_back(block);
     msg_obj_pose_.pose = block.pose_;
     pub_obj_pose_.publish(msg_obj_pose_);
-    pub_obj_moveit_.publish(block.collObj_);
+
+    //publish the collision object
+    blocks_.back().publishBlock(&current_scene_);
+  }
+
+  void SimplePickPlace::publishAllCollObj(std::vector<MetaBlock> *blocks)
+  {
+    if (blocks->size() > 0)
+    {
+      std::vector<moveit_msgs::CollisionObject> coll_objects;
+
+      std::vector<MetaBlock>::iterator block=blocks->begin();
+      for (; block != blocks->end(); ++block)
+        coll_objects.push_back(block->collObj_);
+
+      if (coll_objects.size() > 0)
+        current_scene_.addCollisionObjects(coll_objects);
+    }
   }
 
   bool SimplePickPlace::checkObj(int &block_id)
@@ -194,6 +214,11 @@ namespace moveit_simple_actions
                         block_size_x_,
                         block_size_y_,
                         0.0));
+    block_id = 0;
+
+    sleep(1.0);
+    if (blocks_.size() > 0)
+      pose_optimal_ = blocks_[block_id].getTransform(&listener_);
 
     std::string actionName = "";
 
@@ -221,17 +246,6 @@ namespace moveit_simple_actions
                         << " out of " << blocks_.size());
       }
 
-      if (block_id >= 0)
-      {
-        if (!action->checkArm(hand_id, blocks_[block_id].pose_.position.y))
-          switchArm(&action);
-      }
-      else
-      {
-        if (!action->checkArm(hand_id))
-          switchArm(&action);
-      }
-
       //ROS_INFO_STREAM("What do you want me to do ?");
       actionName = promptUserQuestionString();
       ROS_INFO_STREAM("Action chosen '" << actionName
@@ -242,13 +256,6 @@ namespace moveit_simple_actions
       if ((checkObj(block_id)) && (actionName == "g"))
       {
         bool success = action->pickAction(&blocks_[block_id], support_surface_);
-
-        //if not succeded then try with another arm
-        /*if(!success)
-        {
-          switchArm(&action);
-          success = action->pickAction(&blocks_[block_id], support_surface_);
-        }*/
 
         if(success)
           stat_poses_success_.push_back(blocks_[block_id].pose_);
@@ -314,51 +321,28 @@ namespace moveit_simple_actions
         cleanObjects(&blocks_);
 
         objproc_.triggerObjectDetection();
+
         // publish all objects as collision blocks
-        if (blocks_.size() > 0)
-        {
-          std::vector<MetaBlock>::iterator block=blocks_.begin();
-          for (; block != blocks_.end(); ++block)
-          {
-            //visual_tools_->cleanupCO(block->name_);
-            moveit_msgs::CollisionObject msg =
-                block->wrapToCollObj(objproc_.getMeshFromDB(block->type_));
-            if (!msg.meshes.empty())
-              pub_obj_moveit_.publish(msg);
-            else
-              pub_obj_moveit_.publish(block->collObj_);
-          }
-        }
+        publishAllCollObj(&blocks_);
       }
       //continuous object detection
       else if (actionName == "dd")
       {
-        cleanObjects(&blocks_);
+        cleanObjects(&blocks_, true);
 
+        ROS_INFO_STREAM("Object detection is running...");
         ros::Time start_time = ros::Time::now();
         while ((blocks_.size() <= 0)
                && (ros::Time::now()-start_time < ros::Duration(10.0)))
         {
-          ROS_INFO_STREAM("Object detection is running...");
           objproc_.triggerObjectDetection();
+          rate.sleep();
         }
-        ROS_INFO_STREAM(blocks_.size() << " objects detected");
-
+        if (verbose_)
+          ROS_INFO_STREAM(blocks_.size() << " objects detected");
 
         // publish all objects as collision blocks
-        if (blocks_.size() > 0)
-        {
-          std::vector<MetaBlock>::iterator block=blocks_.begin();
-          for (; block != blocks_.end(); ++block)
-          {
-            moveit_msgs::CollisionObject msg =
-                block->wrapToCollObj(objproc_.getMeshFromDB(block->type_));
-            if (!msg.primitive_poses.empty())
-              pub_obj_moveit_.publish(msg);
-            else
-              pub_obj_moveit_.publish(block->collObj_);
-          }
-        }
+        publishAllCollObj(&blocks_);
       }
       //plan possible movement
       else if ((checkObj(block_id)) && (actionName == "plan"))
@@ -379,112 +363,34 @@ namespace moveit_simple_actions
       //reaching based on default pose and grasp
       else if ((checkObj(block_id)) && (actionName == "u"))
       {
-        if (use_wheels_)
+        //check the we use the correct arm
+        /*if (block_id >= 0)
         {
-          //block pose after moving
-          geometry_msgs::Pose pose_obj = blocks_[block_id].pose_;
-          bool do_move(false);
-          geometry_msgs::Twist msg_twist;
-          msg_twist.linear.x = msg_twist.linear.y = msg_twist.angular.z = 0.0;
+          bool is_close(true);
+          if (action_left_->computeDistance(&blocks_[block_id])
+              > action_right_->computeDistance(&blocks_[block_id]))
+            if (action->plan_group_.find("left") != std::string::npos)
+              is_close = false;
 
-          float dist = action->computeDistance(&blocks_[block_id], 1, 0, 0);
-          if (dist > 0.243f) //evaluation_->getXmax();
+          if (!action->checkArm(hand_id, is_close))
           {
-            do_move = true;
-            msg_twist.linear.x = dist - pose_default_.position.x;
-            pose_obj.position.x -= msg_twist.linear.x;
-          }
-          dist = action->computeDistance(&blocks_[block_id], 0, 1, 0);
-          /*if (std::fabs(dist) > std::fabs(evaluation_.getYmax()))
-          {
-            do_move = true;
-            if (pose_obj.position.y > 0)
-              msg_twist.linear.y = dist - pose_default_.position.y;
-            else
-              msg_twist.linear.y = dist + pose_default_.position.y;
-            pose_obj.position.y -= msg_twist.linear.y;
-          }*/
-
-          if (do_move)
-          {
-            //remember the initial pose
-            tf::Stamped<tf::Pose> transformed_pose_robot;
-            tf::TransformListener listener;
-
-            tf::Stamped<tf::Pose> tf_obj(
-                  tf::Pose(
-                    tf::Quaternion(blocks_[block_id].pose_.orientation.x,
-                                   blocks_[block_id].pose_.orientation.y,
-                                   blocks_[block_id].pose_.orientation.z,
-                                   blocks_[block_id].pose_.orientation.w),
-                    tf::Vector3(blocks_[block_id].pose_.position.x,
-                                blocks_[block_id].pose_.position.y,
-                                blocks_[block_id].pose_.position.z)),
-                ros::Time(0), "odom"); //blocks_[block_id].base_frame_
-            try
-            {
-              //the the base current bose
-              listener.transformPose("base_link", tf_obj, transformed_pose_robot);
-            }
-            catch (tf::TransformException ex)
-            {
-             ROS_ERROR("%s",ex.what());
-            }
-
-            sleep(1.0);
-            try
-            {
-              listener.transformPose("base_link", tf_obj, transformed_pose_robot);
-            }
-            catch (tf::TransformException ex)
-            {
-             ROS_ERROR("%s",ex.what());
-            }
-
-            listener.transformPose("base_link", tf_obj, transformed_pose_robot);
-            ROS_INFO_STREAM("The object to base "
-                           << " " << transformed_pose_robot.getOrigin().x()
-                           << " " << transformed_pose_robot.getOrigin().y()
-                           << " " << transformed_pose_robot.getOrigin().z()
-                           );
-
-            ROS_INFO_STREAM("Moving closer to (x y)"
-                            << msg_twist.linear.x << " "
-                            << msg_twist.linear.y);
-            pub_cmd_.publish(msg_twist);
-            ros::spinOnce();
-            sleep(1.0);
-            msg_twist.linear.x = msg_twist.linear.y = msg_twist.angular.z = 0.0;
-            pub_cmd_.publish(msg_twist);
-            ros::spinOnce();
+            switchArm(&action);
             sleep(2.0);
-
-            try
-            {
-              /*listener.transformPose("/", pose_robot, transformed_pose_robot);*/
-
-             //the the base current bose
-             listener.transformPose("base_link", tf_obj, transformed_pose_robot);
-             ROS_INFO_STREAM("The object to base "
-                            << " " << transformed_pose_robot.getOrigin().x()
-                            << " " << transformed_pose_robot.getOrigin().y()
-                            << " " << transformed_pose_robot.getOrigin().z()
-                            );
-            }
-            catch (tf::TransformException ex)
-            {
-             ROS_ERROR("%s",ex.what());
-             ros::Duration(1.0).sleep();
-            }
-
-            //update the object position
-            blocks_[block_id].updatePose(pose_obj);
+            ROS_INFO_STREAM("//// switch the arm 378");
           }
         }
+        else
+        {
+          if (!action->checkArm(hand_id))
+          {
+            switchArm(&action);
+            sleep(2.0);
+            ROS_INFO_STREAM("//// switch the arm 387");
+          }
+        }*/
 
-        //if the object is far, than switch the arm
-        /*if (action->computeDistance(&blocks_[block_id]) > 0.4f)
-          switchArm(&action);*/
+        if (use_wheels_)
+          moveToObject(&blocks_[block_id]);
 
         action->reachGrasp(&blocks_[block_id], support_surface_);
       }
@@ -543,7 +449,8 @@ namespace moveit_simple_actions
                               true);
         //draw the table again
         if (env_shown_)
-          pub_obj_moveit_.publish(blocks_surfaces_.back().collObj_);
+          if (blocks_surfaces_.size() > 0)
+            blocks_surfaces_.back().publishBlock(&current_scene_);
       }
       //test the goal space for reaching
       else if (actionName == "test_reach")
@@ -557,16 +464,20 @@ namespace moveit_simple_actions
                               false);
         //draw the table again
         if (env_shown_)
-        pub_obj_moveit_.publish(blocks_surfaces_.back().collObj_);
+          if (blocks_surfaces_.size() > 0)
+            blocks_surfaces_.back().publishBlock(&current_scene_);
       }
       //set the table height
       else if (actionName == "set_table_height")
       {
         //TODO make a function
-        blocks_surfaces_.front().size_z_ = promptUserValue("Give the table height");
-        blocks_surfaces_.front().pose_.position.z =
-            floor_to_base_height_ + blocks_surfaces_.front().size_z_/2.0;
-        pub_obj_moveit_.publish(blocks_surfaces_.front().collObj_);
+        if (blocks_surfaces_.size() > 0)
+        {
+          blocks_surfaces_.back().size_z_ = promptUserValue("Set the table height to");
+          blocks_surfaces_.back().pose_.position.z =
+              floor_to_base_height_ + blocks_surfaces_.back().size_z_/2.0;
+          blocks_surfaces_.back().publishBlock(&current_scene_);
+        }
       }
       //clean the scene
       else if (actionName == "table")
@@ -579,8 +490,11 @@ namespace moveit_simple_actions
         }
         else
         {
-          pub_obj_moveit_.publish(blocks_surfaces_.front().collObj_);
-          env_shown_ = true;
+          if (blocks_surfaces_.size() > 0)
+          {
+            blocks_surfaces_.back().publishBlock(&current_scene_);
+            env_shown_ = true;
+          }
         }
       }
       //moving the virtual object down
@@ -588,84 +502,55 @@ namespace moveit_simple_actions
       {
         geometry_msgs::Pose pose(blocks_[block_id].pose_);
         pose.position.z -= 0.05;
-        blocks_[block_id].updatePose(&pub_obj_moveit_, pose);
+        blocks_[block_id].updatePose(&current_scene_, pose);
       }
       //move the virtual object left
       else if (checkObj(block_id) && ((actionName == "s") || (actionName == "left")))
       {
         geometry_msgs::Pose pose(blocks_[block_id].pose_);
         pose.position.y -= 0.05;
-        blocks_[block_id].updatePose(&pub_obj_moveit_, pose);
+        blocks_[block_id].updatePose(&current_scene_, pose);
       }
       //move the virtual object up
       else if (checkObj(block_id) && ((actionName == "e") || (actionName == "up")))
       {
         geometry_msgs::Pose pose(blocks_[block_id].pose_);
         pose.position.z += 0.05;
-        blocks_[block_id].updatePose(&pub_obj_moveit_, pose);
+        blocks_[block_id].updatePose(&current_scene_, pose);
       }
       //move the virtual object right
       else if (checkObj(block_id) && ((actionName == "f") || (actionName == "right")))
       {
         geometry_msgs::Pose pose(blocks_[block_id].pose_);
         pose.position.y += 0.05;
-        blocks_[block_id].updatePose(&pub_obj_moveit_, pose);
+        blocks_[block_id].updatePose(&current_scene_, pose);
       }
       //move the virtual object
       else if (checkObj(block_id) && ((actionName == "c") || (actionName == "farther")))
       {
         geometry_msgs::Pose pose(blocks_[block_id].pose_);
         pose.position.x += 0.05;
-        blocks_[block_id].updatePose(&pub_obj_moveit_, pose);
+        blocks_[block_id].updatePose(&current_scene_, pose);
       }
       //move the virtual object closer
       else if (checkObj(block_id) && ((actionName == "r") || (actionName == "closer")))
       {
         geometry_msgs::Pose pose(blocks_[block_id].pose_);
         pose.position.x -= 0.05;
-        blocks_[block_id].updatePose(&pub_obj_moveit_, pose);
+        blocks_[block_id].updatePose(&current_scene_, pose);
       }
       //compute the distance to the object
       else if (checkObj(block_id) && (actionName == "compute_distance"))
       {
         ROS_INFO_STREAM("The distance to the object = "
                         << action->computeDistance(&blocks_[block_id])
+                        << ", linear: " << action->computeDistance(&blocks_[block_id], 1, 1, 0)
                         << ", in x: " << action->computeDistance(&blocks_[block_id], 1, 0, 0)
                         << ", in y: " << action->computeDistance(&blocks_[block_id], 0, 1, 0));
-      }
-      else if (checkObj(block_id) && (actionName == "tf"))
-      {
-        //remember the initial pose
-        tf::Stamped<tf::Pose> transformed_pose_robot;
-        tf::TransformListener listener;
 
-        tf::Stamped<tf::Pose> tf_obj(
-              tf::Pose(
-                tf::Quaternion(blocks_[block_id].pose_.orientation.x,
-                               blocks_[block_id].pose_.orientation.y,
-                               blocks_[block_id].pose_.orientation.z,
-                               blocks_[block_id].pose_.orientation.w),
-                tf::Vector3(blocks_[block_id].pose_.position.x,
-                            blocks_[block_id].pose_.position.y,
-                            blocks_[block_id].pose_.position.z)),
-            ros::Time(0), blocks_[block_id].base_frame_);
-        try
-        {
-          //the the base current bose
-          listener.transformPose("odom", tf_obj, transformed_pose_robot);
-          sleep(1.0);
-          listener.transformPose("odom", tf_obj, transformed_pose_robot);
-          ROS_INFO_STREAM("The object to base "
-                         << " " << transformed_pose_robot.getOrigin().x()
-                         << " " << transformed_pose_robot.getOrigin().y()
-                         << " " << transformed_pose_robot.getOrigin().z()
-                         );
-        }
-        catch (tf::TransformException ex)
-        {
-         ROS_ERROR("%s",ex.what());
-         ros::Duration(1.0).sleep();
-        }
+        blocks_[block_id].getTransform(&listener_);
+
+        moveToObject(&blocks_[block_id]);
       }
       //set the tolerance
       else if (actionName == "j")
@@ -711,6 +596,65 @@ namespace moveit_simple_actions
     }
   }
 
+  void SimplePickPlace::moveTo(geometry_msgs::Twist *msg_twist)
+  {
+    ROS_INFO_STREAM("Moving closer to object ["
+                    << msg_twist->linear.x << " "
+                    << msg_twist->linear.y << " "
+                    << msg_twist->angular.z << "]");
+
+    pub_cmd_.publish(*msg_twist);
+    ros::spinOnce();
+    sleep(1.0);
+
+    //stop the robot
+    msg_twist->linear.x = 0.0;
+    msg_twist->linear.y = 0.0;
+    msg_twist->angular.z = 0.0;
+
+    pub_cmd_.publish(*msg_twist);
+    ros::spinOnce();
+    sleep(2.0);
+  }
+
+  void SimplePickPlace::moveToObject(MetaBlock *block)
+  {
+    geometry_msgs::Twist msg_twist;
+    msg_twist.linear.x = msg_twist.linear.y = msg_twist.linear.z;
+    msg_twist.angular.x = msg_twist.angular.y = msg_twist.angular.z = 0.0;
+
+    //compute the object pose in the robot's frame
+    tf::Stamped<tf::Pose> pose_real = block->getTransform(&listener_);
+
+    //compute the distandce to the object
+    float dist_real = sqrt(pose_real.getOrigin().x() * pose_real.getOrigin().x()
+                      + pose_real.getOrigin().y() * pose_real.getOrigin().y());
+    float dist_opt = sqrt(pose_optimal_.getOrigin().x() * pose_optimal_.getOrigin().x()
+                          + pose_optimal_.getOrigin().y() * pose_optimal_.getOrigin().y());
+    float dist = dist_real - dist_opt;
+    //ROS_INFO_STREAM("Current distance to the optimal pose " << dist);
+
+    if (fabs(dist) > 0.21f) //evaluation_->getXmax();
+    {
+      float theta = pose_real.getOrigin().x()
+          / (dist_real * fabs(pose_real.getOrigin().x()));
+      theta = theta / 360.0f * 3.1416f;
+
+      //if colinear than theta  = 90?
+      if (fabs(pose_real.getOrigin().x()) == 0)
+        theta = 1.41372;
+
+      //turn the robot to align with the object's X axis
+      msg_twist.angular.z = -theta;
+      //moveTo(&msg_twist);
+
+      //move the robot
+      msg_twist.linear.x = dist + 0.0011;
+      //msg_twist.angular.z = 0.0;
+      moveTo(&msg_twist);
+    }
+  }
+
   //clean the object list based on the timestamp
   void SimplePickPlace::cleanObjects(std::vector<MetaBlock> *objects,
                                      const bool list_erase)
@@ -741,16 +685,16 @@ namespace moveit_simple_actions
     //visual_tools_->cleanupCO(block->name_);
     //visual_tools_->processCollisionObjectMsg(block->wrapToCollisionObject);
 
-    pub_obj_moveit_.publish(block->collObj_);
+    block->publishBlock(&current_scene_);
   }
 
   void SimplePickPlace::getCollisionObjects(const moveit_msgs::CollisionObject::ConstPtr& msg)
   {
-    //cleanObjects(&blocks_, false);
+    //cleanObjects(&blocks_, true);
 
     try
     {
-      if (msg->meshes.size() > 0)
+      if ((msg->meshes.size() > 0) && (msg->mesh_poses.size() > 0))
       {
         geometry_msgs::Pose pose = msg->mesh_poses[0];
         //if (evaluation_.inWorkSpace(pose))
@@ -776,7 +720,6 @@ namespace moveit_simple_actions
     }
     catch (tf::TransformException ex){
       ROS_ERROR("%s",ex.what());
-      ros::Duration(1.0).sleep();
     }
   }
 

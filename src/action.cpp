@@ -13,8 +13,8 @@ Action::Action(ros::NodeHandle *nh,
                const std::string &hand,
                const std::string &robot_name):
   verbose_(false),
-  attempts_max_(3),
-  planning_time_(10.0), //=5 in GUI
+  attempts_max_(4),
+  planning_time_(12.0), //=5 in GUI
   planner_id_("RRTConnectkConfigDefault"),
   tolerance_min_(0.03), //tested on Pepper, works from 0.03
   tolerance_step_(0.01),
@@ -94,11 +94,6 @@ void Action::initVisualTools(moveit_visual_tools::MoveItVisualToolsPtr &visual_t
   // Load Grasp generator
   simple_grasps_.reset(new moveit_simple_grasps::SimpleGrasps(visual_tools_));
 }
-
-/*void Action::setDefaultObjPose(geometry_msgs::Pose pose)
-{
-  //dist_default_ = action->computeDistance(&blocks_[block_id], 1, 0, 0);
-}*/
 
 bool Action::pickDefault(MetaBlock *block,
                          const std::string surface_name)
@@ -240,16 +235,12 @@ float Action::computeDistance(MetaBlock *block,
                 + (goal.position.y - current.position.y)
                 * (goal.position.y - current.position.y));
   else if (x && !y && !z)
-  {
-    dist = sqrt((goal.position.x - current.position.x)
-                * (goal.position.x - current.position.x));
-  }
+    dist = goal.position.x - current.position.x;
   else if (!x && y && !z)
-    dist = sqrt((goal.position.y - current.position.y)
-                * (goal.position.y - current.position.y));
+    dist = goal.position.y - current.position.y;
   else if (!x && !y && z)
-    dist = sqrt((goal.position.z - current.position.z)
-                * (goal.position.z - current.position.z));
+    dist = goal.position.z - current.position.z;
+
   return dist;
 }
 
@@ -362,11 +353,13 @@ bool Action::reachGrasp(MetaBlock *block,
 {
   bool success(false);
 
-  if (verbose_)
+  //if (verbose_)
     ROS_INFO_STREAM("Reaching at position = "
                     << block->pose_.position.x << " "
                     << block->pose_.position.y << " "
                     << block->pose_.position.z);
+
+  block->getTransform(&listener_);
 
   if (attempts_nbr == 0)
     attempts_nbr = attempts_max_;
@@ -383,7 +376,7 @@ bool Action::reachGrasp(MetaBlock *block,
 
   //adapt the object
   pose.position.x += grasp_data_.grasp_pose_to_eef_pose_.position.x;
-  if (pose.position.y > 0 )
+  if (plan_group_.find("left") != std::string::npos)
     pose.position.y += grasp_data_.grasp_pose_to_eef_pose_.position.y;
   else
     pose.position.y -= grasp_data_.grasp_pose_to_eef_pose_.position.y;
@@ -403,10 +396,11 @@ bool Action::reachGrasp(MetaBlock *block,
   }
 
   //publish the object
-  std::vector< moveit_msgs::CollisionObject > objects;
+  block->publishBlock(&current_scene_);
+  /*std::vector< moveit_msgs::CollisionObject > objects;
   objects.push_back(block->collObj_);
   current_scene_.addCollisionObjects(objects);
-  sleep(0.1);
+  sleep(0.1);*/
 
   //attach the object
   if (success)
@@ -840,11 +834,11 @@ std::string Action::getBaseLink()
 }
 
 bool Action::checkArm(const int &hand_id,
-                      const double &obj_y)
+                      const bool &is_close)
 {
   if (hand_id == 0)
   {
-    if (obj_y >= 0.0)
+    if (is_close)
     {
       //if needed change the arm
       if (plan_group_.find("right") != std::string::npos)

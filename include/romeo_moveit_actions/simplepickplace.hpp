@@ -5,6 +5,9 @@
 #include <moveit_visual_tools/moveit_visual_tools.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 
+//#include <cstdlib>
+//#include <mutex>          // std::mutex
+
 #include "romeo_moveit_actions/metablock.hpp"
 #include "romeo_moveit_actions/action.hpp"
 #include "romeo_moveit_actions/objprocessing.hpp"
@@ -46,6 +49,15 @@ protected:
 
   //! @brief check if the block exists
   bool checkObj(int &block_id);
+
+  //! @brief publish all collision blocks in MoveIt
+  void publishAllCollObj(std::vector<MetaBlock> *blocks);
+
+  //! @brief move closer to the object
+  void moveToObject(MetaBlock *block);
+
+  //! @brief move to direction
+  void moveTo(geometry_msgs::Twist *msg_twist);
 
   //node handle
   ros::NodeHandle nh_, nh_priv_;
@@ -136,6 +148,14 @@ protected:
 
   //all successfully reached positions
   std::vector <geometry_msgs::Pose> stat_poses_success_;
+
+  //optimal base_link pose to easier grasp objects
+  tf::Stamped<tf::Pose> pose_optimal_;
+
+  //transform listener
+  tf::TransformListener listener_;
+
+  //std::mutex mtx_;
 };
 }
 
