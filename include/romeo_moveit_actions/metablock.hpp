@@ -59,7 +59,11 @@ public:
   void publishBlock(mscene *current_scene);
 
   //! @brief get the transform to base_link
-  tf::Stamped<tf::Pose> getTransform(tf::TransformListener *listener);
+  tf::Stamped<tf::Pose> getTransform(tf::TransformListener *listener,
+                                     const std::string &frame);
+
+  geometry_msgs::PoseStamped getTransformed(tf::TransformListener *listener,
+                                          const std::string &frame);
 
   //object name
   std::string name_;

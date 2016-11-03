@@ -39,7 +39,10 @@ public:
   void printStat();
 
   //! @brief checking if the pose is within the working space (close enough)
-  bool inWorkSpace(geometry_msgs::Pose pose);
+  bool inWorkSpace(geometry_msgs::Pose pose,
+                   const bool x=true,
+                   const bool y=true,
+                   const bool z=true);
 
   //! @brief getting the X size of the working space
   float getXmax();

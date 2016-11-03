@@ -13,13 +13,13 @@ Action::Action(ros::NodeHandle *nh,
                const std::string &hand,
                const std::string &robot_name):
   verbose_(false),
-  attempts_max_(4),
-  planning_time_(12.0), //=5 in GUI
-  planner_id_("RRTConnectkConfigDefault"),
-  tolerance_min_(0.03), //tested on Pepper, works from 0.03
-  tolerance_step_(0.01),
+  attempts_max_(3),
+  planning_time_(20.0), //=5 in GUI
+  planner_id_("RRTConnectkConfigDefault"), //RRTConnect
+  tolerance_min_(0.04), //tested on Pepper, works from 0.03
+  tolerance_step_(0.02),
   max_velocity_scaling_factor_(1.0), //=1.0 in GUI
-  dist_th_(0.08f), //0.041f),
+  dist_th_(0.08f),
   flag_(FLAG_MOVE),
   end_eff_(hand),
   plan_group_(arm),
@@ -38,7 +38,7 @@ Action::Action(ros::NodeHandle *nh,
   move_group_->setGoalTolerance(tolerance_min_);
   move_group_->setPlanningTime(planning_time_);
   move_group_->setPlannerId(planner_id_);
-  //move_group_->setNumPlanningAttempts(10);
+  move_group_->setNumPlanningAttempts(4);
   //move_group_->setGoalPositionTolerance(0.1); //0.0001
   //move_group_->setGoalOrientationTolerance(0.1); //0.001
   //move_group_->setMaxVelocityScalingFactor(1.0);
@@ -107,6 +107,7 @@ bool Action::pickDefault(MetaBlock *block,
   g.grasp_pose.pose = block->pose_;
   g.grasp_pose.pose = grasp_data_.grasp_pose_to_eef_pose_;
 
+  ROS_INFO_STREAM(" -- grasp_data_.ee_parent_link_ "<< grasp_data_.ee_parent_link_);
   g.pre_grasp_approach.direction.header.frame_id = grasp_data_.ee_parent_link_;
   g.pre_grasp_approach.direction.vector.x = 0;
   g.pre_grasp_approach.direction.vector.y = 0;
@@ -126,12 +127,14 @@ bool Action::pickDefault(MetaBlock *block,
   if (grasp_data_.grasp_posture_.joint_names.size() > 0)
   {
     g.pre_grasp_posture.joint_names.resize(1);
+ROS_INFO_STREAM( " -- " << grasp_data_.grasp_posture_.joint_names[0]);
     g.pre_grasp_posture.joint_names[0] = grasp_data_.grasp_posture_.joint_names[0];
     g.pre_grasp_posture.points.resize(1);
     g.pre_grasp_posture.points[0].positions.resize(1);
     g.pre_grasp_posture.points[0].positions[0] = 0.0;
 
     g.grasp_posture.joint_names.resize(1);
+ROS_INFO_STREAM(" -- " << g.pre_grasp_posture.joint_names[0]);
     g.grasp_posture.joint_names[0] = g.pre_grasp_posture.joint_names[0];
     g.grasp_posture.points.resize(1);
     g.grasp_posture.points[0].positions.resize(1);
@@ -220,45 +223,53 @@ bool Action::graspPlan(MetaBlock *block, const std::string surface_name)
   return success;
 }
 
-float Action::computeDistance(MetaBlock *block,
-                              const bool &x,
-                              const bool &y,
-                              const bool &z)
+geometry_msgs::PoseStamped Action::getGraspPose(MetaBlock *block)
 {
-  float dist(0.0f);
-  geometry_msgs::Pose goal = objGraspPose(block);
-  geometry_msgs::Pose current(move_group_->getCurrentPose().pose);
+  geometry_msgs::PoseStamped goal;
+  goal.header.stamp = ros::Time::now();
 
-  if (x && y && !z)
-    dist = sqrt((goal.position.x - current.position.x)
-                * (goal.position.x - current.position.x)
-                + (goal.position.y - current.position.y)
-                * (goal.position.y - current.position.y));
-  else if (x && !y && !z)
-    dist = goal.position.x - current.position.x;
-  else if (!x && y && !z)
-    dist = goal.position.y - current.position.y;
-  else if (!x && !y && z)
-    dist = goal.position.z - current.position.z;
+  goal.header.frame_id = block->base_frame_;
+  goal.pose = block->pose_;
+  goal.pose.position.x += grasp_data_.grasp_pose_to_eef_pose_.position.x;
+  goal.pose.position.y += grasp_data_.grasp_pose_to_eef_pose_.position.y;
+  goal.pose.position.z += grasp_data_.grasp_pose_to_eef_pose_.position.z;
 
-  return dist;
-}
+  goal.pose.orientation = grasp_data_.grasp_pose_to_eef_pose_.orientation;
 
-geometry_msgs::Pose Action::objGraspPose(MetaBlock *block)
-{
-  geometry_msgs::Pose goal(block->pose_);
-  goal.position.z += block->size_y_/2.0;
-  goal.position.x += grasp_data_.grasp_pose_to_eef_pose_.position.x;
-  goal.position.y += grasp_data_.grasp_pose_to_eef_pose_.position.y;
-  goal.position.z += grasp_data_.grasp_pose_to_eef_pose_.position.z;
-  goal.orientation = grasp_data_.grasp_pose_to_eef_pose_.orientation;
+  if (block->base_frame_ == "base_link")
+  {
+    /*geometry_msgs::PoseStamped pose_transform = block->getTransformed(&listener_, "base_link");
+    goal.header.frame_id = pose_transform.header.frame_id;
+
+    goal.pose = pose_transform.pose;
+    goal.pose.position.x += grasp_data_.grasp_pose_to_eef_pose_.position.x;
+    goal.pose.position.y += grasp_data_.grasp_pose_to_eef_pose_.position.y;
+    goal.pose.position.z += grasp_data_.grasp_pose_to_eef_pose_.position.z;*/
+  }
   return goal;
 }
 
 float Action::computeDistance(MetaBlock *block)
 {
-  geometry_msgs::Pose goal = objGraspPose(block);
+  geometry_msgs::PoseStamped goal = getGraspPose(block);
   geometry_msgs::Pose current(move_group_->getCurrentPose().pose);
+
+  float dist = sqrt((goal.pose.position.x - current.position.x)
+                    * (goal.pose.position.x - current.position.x)
+                    + (goal.pose.position.y - current.position.y)
+                    * (goal.pose.position.y - current.position.y)
+                    + (goal.pose.position.z - current.position.z)
+                    * (goal.pose.position.z - current.position.z));
+  return dist;
+}
+
+float Action::computeDistance(geometry_msgs::Pose goal)
+{
+  geometry_msgs::Pose current(move_group_->getCurrentPose().pose);
+
+  /*ROS_INFO_STREAM("-- " << (goal.position.x - current.position.x) << " "
+                  << (goal.position.y - current.position.y) << " "
+                  << (goal.position.z - current.position.z) << " " );*/
 
   float dist = sqrt((goal.position.x - current.position.x)
                     * (goal.position.x - current.position.x)
@@ -302,10 +313,25 @@ geometry_msgs::Pose Action::getPose()
 {
   geometry_msgs::PoseStamped pose_now;
   pose_now.header.stamp = ros::Time::now();
-  pose_now.header.frame_id = grasp_data_.base_link_;
 
   pose_now.pose = move_group_->getCurrentPose().pose;
+  pose_now.header.frame_id = grasp_data_.base_link_;
+
+  /*geometry_msgs::Pose pose = move_group_->getCurrentPose().pose;
   //ROS_INFO_STREAM("current pose is " << pose_now);
+  if (pose.header.frame_id.compare(grasp_data_.base_link_) == 0)
+    pose_now.pose = pose;
+  else
+  {
+    tf::Stamped<tf::Pose> pose_tr = blocks_[block_id].getTransform(&listener_, grasp_data_.base_link_);
+    pose_now.pose.position.x = pose_tr.getOrigin().x();
+    pose_now.pose.position.y = pose_tr.getOrigin().y();
+    pose_now.pose.position.z = pose_tr.getOrigin().z();
+    pose_now.pose.orientation.x = pose_tr.getRotation().x;
+    pose_now.pose.orientation.y = pose_tr.getRotation().y;
+    pose_now.pose.orientation.z = pose_tr.getRotation().z;
+    pose_now.pose.orientation.w = pose_tr.getRotation().w;
+  }*/
 
   pose_now.pose.position.x -= grasp_data_.grasp_pose_to_eef_pose_.position.x;
   pose_now.pose.position.y -= grasp_data_.grasp_pose_to_eef_pose_.position.y;
@@ -353,13 +379,11 @@ bool Action::reachGrasp(MetaBlock *block,
 {
   bool success(false);
 
-  //if (verbose_)
+  if (verbose_)
     ROS_INFO_STREAM("Reaching at position = "
                     << block->pose_.position.x << " "
                     << block->pose_.position.y << " "
                     << block->pose_.position.z);
-
-  block->getTransform(&listener_);
 
   if (attempts_nbr == 0)
     attempts_nbr = attempts_max_;
@@ -371,23 +395,14 @@ bool Action::reachGrasp(MetaBlock *block,
   block->removeBlock(&current_scene_);
   ros::Duration(0.2).sleep();
 
-  geometry_msgs::Pose pose = block->pose_;
-  pose.position.z += block->size_y_/2.0;
-
-  //adapt the object
-  pose.position.x += grasp_data_.grasp_pose_to_eef_pose_.position.x;
-  if (plan_group_.find("left") != std::string::npos)
-    pose.position.y += grasp_data_.grasp_pose_to_eef_pose_.position.y;
-  else
-    pose.position.y -= grasp_data_.grasp_pose_to_eef_pose_.position.y;
-  pose.position.z += grasp_data_.grasp_pose_to_eef_pose_.position.z;
-  pose.orientation = grasp_data_.grasp_pose_to_eef_pose_.orientation;
+  geometry_msgs::PoseStamped pose = getGraspPose(block);
+sleep(1.0);
 
   if (!reachAction(pose, surface_name, attempts_nbr))
     return false;
-
+sleep(8.0);
   //compute the distance to teh object
-  float dist = computeDistance(block);
+  float dist = computeDistance(pose.pose);
   //close the hand, if the object is close enough
   if (dist < dist_th_)
   {
@@ -397,10 +412,6 @@ bool Action::reachGrasp(MetaBlock *block,
 
   //publish the object
   block->publishBlock(&current_scene_);
-  /*std::vector< moveit_msgs::CollisionObject > objects;
-  objects.push_back(block->collObj_);
-  current_scene_.addCollisionObjects(objects);
-  sleep(0.1);*/
 
   //attach the object
   if (success)
@@ -416,7 +427,7 @@ bool Action::reachGrasp(MetaBlock *block,
   return success;
 }
 
-bool Action::reachAction(geometry_msgs::Pose pose_target,
+bool Action::reachAction(geometry_msgs::PoseStamped pose_target,
                          const std::string surface_name,
                          const int attempts_nbr)
 {
@@ -434,8 +445,13 @@ bool Action::reachAction(geometry_msgs::Pose pose_target,
   if (!surface_name.empty())
     move_group_->setSupportSurfaceName(surface_name);
 
-  move_group_->setPoseTarget(pose_target, move_group_->getEndEffectorLink().c_str());
-  pub_obj_pose.publish(move_group_->getPoseTarget());
+  move_group_->setPoseTarget(pose_target,
+                             move_group_->getEndEffectorLink().c_str());
+
+  //publish the target pose
+  pub_obj_pose.publish(pose_target);
+  /*sleep(0.5);
+  pub_obj_pose.publish(move_group_->getPoseTarget());*/
 
   double tolerance = tolerance_min_;
   int attempts = 0;
@@ -452,8 +468,7 @@ bool Action::reachAction(geometry_msgs::Pose pose_target,
     if (!success)
     {
       tolerance += tolerance_step_;
-
-      if (verbose_)
+      //if (verbose_)
         ROS_INFO_STREAM("Planning retry with the tolerance " << tolerance);
     }
     ++attempts;
@@ -465,13 +480,13 @@ bool Action::reachAction(geometry_msgs::Pose pose_target,
     move_group_->setApproximateJointValueTarget(pose_target,
                                                 move_group_->getEndEffectorLink().c_str());
     success = move_group_->plan(*current_plan_);
-    if (verbose_ && success)
+    //if (verbose_ && success)
       ROS_INFO_STREAM("Reaching success with approximate joint value");
   }
 
   if (success)
   {
-    publishPlanInfo(*current_plan_, pose_target);
+    //publishPlanInfo(*current_plan_, pose_target.pose);
     success = executeAction();
   }else
     current_plan_.reset();
@@ -535,17 +550,16 @@ std::vector<moveit_msgs::Grasp> Action::generateGrasps(MetaBlock *block)
     //visual_tools_->deleteAllMarkers();
 
   geometry_msgs::Pose pose = block->pose_;
-  pose.position.z += block->size_y_/2.0;
 //ROS_INFO_STREAM(" -- " << grasp_data_.base_link_);
   simple_grasps_->generateBlockGrasps(pose, grasp_data_, grasps);
 
-  if (verbose_)
+  /*if (verbose_)
   {
-    //double speed = 0.01; //0.05; //
-    //visual_tools_->publishGrasps(grasps, grasp_data_.ee_parent_link_, speed);
-    //visual_tools_->deleteAllMarkers();
-    //sleep(0.5);
-  }
+    double speed = 0.01;
+    visual_tools_->publishGrasps(grasps, speed); //grasp_data_.ee_parent_link_
+    visual_tools_->deleteAllMarkers();
+    sleep(0.5);
+  }*/
 
   if (grasps.size() > 0)
   {
@@ -598,7 +612,6 @@ bool Action::pickAction(MetaBlock *block,
     planning_time = planning_time_;
 
   std::vector<moveit_msgs::Grasp> grasps = generateGrasps(block);
-ROS_INFO_STREAM("--- move_group_->getEndEffectorLink() " << move_group_->getEndEffectorLink());
   if (grasps.size() == 0)
     return false;
 

@@ -70,7 +70,7 @@ public:
                   const double planning_time=0.0);
 
   //! @brief reach the top of an object
-  bool reachAction(geometry_msgs::Pose pose_target,
+  bool reachAction(geometry_msgs::PoseStamped pose_target,
                    const std::string surface_name="",
                    const int attempts_nbr=1);
 
@@ -107,14 +107,11 @@ public:
   //! @brief compute the distance to the object
   float computeDistance(MetaBlock *block);
 
-  //! @brief compute the distance to the object
-  float computeDistance(MetaBlock *block,
-                        const bool &x,
-                        const bool &y,
-                        const bool &z);
+  //! @brief compute the distance to the pose
+  float computeDistance(geometry_msgs::Pose goal);
 
   //! @brief get the grasping pose for the object pose
-  geometry_msgs::Pose objGraspPose(MetaBlock *block);
+  geometry_msgs::PoseStamped getGraspPose(MetaBlock *block);
 
   //! @brief check if the correct arm is used
   bool checkArm(const int &hand_id,

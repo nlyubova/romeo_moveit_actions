@@ -69,8 +69,8 @@ MetaBlock::MetaBlock(const std::string name,
           ros::Time timestamp):
     name_(name),
     pose_(pose),
-    size_x_(0.01),
-    size_y_(0.01),
+    size_x_(0.03),
+    size_y_(0.115),
     size_z_(0.01),
     timestamp_(timestamp),
     base_frame_("odom")
@@ -84,10 +84,6 @@ MetaBlock::MetaBlock(const std::string name,
   goal_pose_.position.x = 0.4;
   goal_pose_.position.y = 0.3;
   goal_pose_.position.z = -0.05;
-  goal_pose_.orientation.x = -1.0;
-  goal_pose_.orientation.y = 0.0;
-  goal_pose_.orientation.z = 0.0;
-  goal_pose_.orientation.w = 0.0;
   if (pose_.position.y < 0)
     goal_pose_.position.y *= -1;
 
@@ -132,7 +128,7 @@ void MetaBlock::publishBlock(mscene *current_scene)
   std::vector<moveit_msgs::CollisionObject> coll_objects;
   coll_objects.push_back(collObj_);
   current_scene->addCollisionObjects(coll_objects);
-  sleep(0.5);
+  sleep(0.6);
 }
 
 void MetaBlock::updatePose(mscene *current_scene,
@@ -147,7 +143,8 @@ void MetaBlock::updatePose(mscene *current_scene,
   sleep(0.5);
 }
 
-tf::Stamped<tf::Pose> MetaBlock::getTransform(tf::TransformListener *listener)
+tf::Stamped<tf::Pose> MetaBlock::getTransform(tf::TransformListener *listener,
+                                              const std::string &frame)
 {
   tf::Stamped<tf::Pose> pose_to_robot;
 
@@ -160,23 +157,51 @@ tf::Stamped<tf::Pose> MetaBlock::getTransform(tf::TransformListener *listener)
           tf::Vector3(pose_.position.x,
                       pose_.position.y,
                       pose_.position.z)),
-      ros::Time(0), "odom");
+      ros::Time(0), base_frame_);
 
   //the the pose
   try
   {
-    listener->transformPose("base_link", tf_obj, pose_to_robot);
+    listener->transformPose(frame, tf_obj, pose_to_robot);
   }
   catch (tf::TransformException ex)
   {
    ROS_ERROR("%s",ex.what());
   }
 
-  ROS_INFO_STREAM("The pose to the object "
+/*  ROS_INFO_STREAM("The pose to the object "
                  << " " << pose_to_robot.getOrigin().x()
                  << " " << pose_to_robot.getOrigin().y()
                  << " " << pose_to_robot.getOrigin().z()
-                 );
+                 );*/
+  return pose_to_robot;
+}
+
+geometry_msgs::PoseStamped MetaBlock::getTransformed(tf::TransformListener *listener,
+                                                   const std::string &frame)
+{
+  geometry_msgs::PoseStamped pose_to_robot;
+
+  geometry_msgs::PoseStamped pose_obj;
+  pose_obj.header.stamp = ros::Time(0);
+  pose_obj.header.frame_id = base_frame_;
+  pose_obj.pose = pose_;
+
+  //the the pose
+  try
+  {
+    listener->transformPose(frame, pose_obj, pose_to_robot);
+  }
+  catch (tf::TransformException ex)
+  {
+   ROS_ERROR("%s",ex.what());
+  }
+
+/*  ROS_INFO_STREAM("The pose to the object "
+                 << " " << pose_to_robot.getOrigin().x()
+                 << " " << pose_to_robot.getOrigin().y()
+                 << " " << pose_to_robot.getOrigin().z()
+                 );*/
   return pose_to_robot;
 }
 }

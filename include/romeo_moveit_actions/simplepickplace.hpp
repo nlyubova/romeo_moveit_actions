@@ -54,7 +54,7 @@ protected:
   void publishAllCollObj(std::vector<MetaBlock> *blocks);
 
   //! @brief move closer to the object
-  void moveToObject(MetaBlock *block);
+  void moveToObject(MetaBlock *block, const std::string &plan_group);
 
   //! @brief move to direction
   void moveTo(geometry_msgs::Twist *msg_twist);
@@ -122,14 +122,14 @@ protected:
   //publisher of the current object pose
   ros::Publisher pub_obj_pose_;
 
+  //publisher of the currect target pose
+  ros::Publisher pub_target_pose_;
+
   //publisher of collision objects to /collision_world
   ros::Publisher pub_obj_moveit_;
 
   //publisher of velocity
   ros::Publisher pub_cmd_;
-
-  //publisher for moving to a pose
-  ros::Publisher pub_moveto_;
 
   //current object position
   geometry_msgs::PoseStamped msg_obj_pose_;
@@ -155,7 +155,8 @@ protected:
   //transform listener
   tf::TransformListener listener_;
 
-  //std::mutex mtx_;
+  //processing rate
+  ros::Rate rate_;
 };
 }
 

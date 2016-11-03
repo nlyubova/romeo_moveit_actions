@@ -48,8 +48,8 @@ Evaluation::Evaluation(ros::NodeHandle *nh,
     x_max_ = (x_max_==0.0)?0.3:x_max_;
     y_min_ = (y_min_==0.0)?0.12:y_min_;
     y_max_ = (y_max_==0.0)?0.26:y_max_;
-    z_min_ = (z_min_==0.0)?-0.17:z_min_;
-    z_max_ = (z_max_==0.0)?0.05:z_max_;
+    z_min_ = (z_min_==0.0)?0.65:z_min_;
+    z_max_ = (z_max_==0.0)?0.85:z_max_;
   }
   else if (robot_name == "romeo")
   {
@@ -348,13 +348,25 @@ void Evaluation::printStat(const geometry_msgs::PoseArray &poses,
   }
 }
 
-bool Evaluation::inWorkSpace(geometry_msgs::Pose pose)
+bool Evaluation::inWorkSpace(geometry_msgs::Pose pose,
+                             const bool x,
+                             const bool y,
+                             const bool z)
 {
   bool res(false);
-  if ((pose.position.x < x_max_) && (pose.position.x > x_min_)
-      && (pose.position.y < y_max_) && (pose.position.y > y_min_)
-      && (pose.position.z < z_max_) && (pose.position.z > z_min_))
-    res = true;
+  if (x && y && z)
+  {
+    if ((pose.position.x < x_max_) && (pose.position.x > x_min_)
+        && (pose.position.y < y_max_) && (pose.position.y > y_min_)
+        && (pose.position.z < z_max_) && (pose.position.z > z_min_))
+      res = true;
+  }
+  if (!x && !y && z)
+  {
+    if ((pose.position.z < z_max_) && (pose.position.z > z_min_))
+      res = true;
+  }
+
   return res;
 }
 
