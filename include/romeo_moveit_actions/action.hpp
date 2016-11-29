@@ -1,3 +1,19 @@
+/*
+ * Copyright 2016 SoftBank Robotics Europe
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
 #ifndef ACTION_HPP
 #define ACTION_HPP
 
@@ -66,8 +82,9 @@ public:
   //! @brief reach default grasping pose
   bool reachGrasp(MetaBlock *block,
                   const std::string surface_name,
-                  const int attempts_nbr=0,
-                  const double planning_time=0.0);
+                  int attempts_nbr=0,
+                  float tolerance_min=0.0f,
+                  double planning_time=0.0);
 
   //! @brief reach the top of an object
   bool reachAction(geometry_msgs::PoseStamped pose_target,
@@ -126,10 +143,11 @@ public:
   //! @brief lift the arm
   bool lift();
 
-  //name of the planning group
+  /** name of the planning group */
   const std::string plan_group_;
 
 private:
+  //! @brief publish the planning info
   void publishPlanInfo(moveit::planning_interface::MoveGroup::Plan plan,
                        geometry_msgs::Pose pose_target);
 
@@ -161,75 +179,106 @@ private:
   std::vector<geometry_msgs::Pose> configureForPlanning(
       const std::vector<moveit_msgs::Grasp> &grasps);
 
-  //active end effector
+  //! @brief set allowed collision matrix
+  bool setAllowedMoveItCollisionMatrix(moveit_msgs::AllowedCollisionMatrix& m);
+
+  //! @brief get allowed collision matrix
+  bool getCurrentMoveItAllowedCollisionMatrix(moveit_msgs::AllowedCollisionMatrix& matrix);
+
+  //! @brief ensure that the entry exist in the collision matrix
+  std::vector<std::string>::iterator ensureExistsInACM(const std::string& name,
+                                                       moveit_msgs::AllowedCollisionMatrix& m,
+                                                       bool initFlag);
+
+  //! @brief add an object to the collision matrix
+  void expandMoveItCollisionMatrix(const std::string& name,
+                                   moveit_msgs::AllowedCollisionMatrix& m,
+                                   bool default_val);
+
+  //! @brief update the collision matrix with the object
+  void updateCollisionMatrix(const std::string& name);
+
+
+  /** active end effector */
   const std::string end_eff_;
 
+  /** posture class */
   Posture posture_;
 
-  //grasp configuration
+  /** grasp configuration */
   moveit_simple_grasps::GraspData grasp_data_;
 
-  //interface with MoveIt
+  /** interface with MoveIt */
   boost::scoped_ptr<move_group_interface::MoveGroup> move_group_;
 
-  //grasp generator
+  /** grasp generator */
   moveit_simple_grasps::SimpleGraspsPtr simple_grasps_;
 
-  //for planning actions
+  /** for planning actions */
   boost::shared_ptr<moveit::planning_interface::MoveGroup::Plan> current_plan_;
 
-  //visual tools pointer used for scene visualization
+  /** visual tools pointer used for scene visualization */
   moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
 
-  //the current MoveIt scene
+  /** the current MoveIt scene */
   moveit::planning_interface::PlanningSceneInterface current_scene_;
 
-  //publisher for object poses
+  /** publisher for object poses */
   ros::Publisher pub_obj_pose, pub_obj_poses;
 
-  //publish final pose of trajectory
+  /** publish final pose */
   ros::Publisher pub_plan_pose_;
+
+  /** publish final trajectory */
   ros::Publisher pub_plan_traj_;
+
+  /** client FK*/
   ros::ServiceClient client_fk_;
 
+  /** verbnosity level */
   bool verbose_;
 
-  //maximum number of attempts to do action
+  /** maximum number of attempts to do action */
   int attempts_max_;
 
-  //planning time
+  /** planning time */
   double planning_time_;
 
-  //planning library
+  /** planning library */
   std::string planner_id_;
 
-  //minimum tolerance to reach
+  /** minimum tolerance to reach */
   double tolerance_min_;
 
-  //the tolerance step to vary
+  /** the tolerance step to vary */
   double tolerance_step_;
 
-  //maximum velocity factor
+  /** maximum velocity factor */
   double max_velocity_scaling_factor_;
 
-  //the the distance to object allowing to grasp it
+  /** the the distance to object allowing to grasp it */
   float dist_th_;
 
-  //flag to allow motion
+  /** flag to allow motion */
   int flag_;
 
-  //the name of the support surface
+  /** the name of the support surface */
   std::string support_surface_;
 
-  //the current attached object
+  /** the current attached object */
   std::string object_attached_;
 
-  //the transform listener
+  /** the transform listener */
   tf::TransformListener listener_;
+
+  /** client get scene difference */
+  ros::Publisher planning_scene_publisher_;
+
+  /** planning scene client */
+  ros::ServiceClient planning_scene_client_;
+
+  /** allowed collision links */
+  std::vector<std::string> allowedCollisionLinks_;
 };
-
-
-
 }
-
 #endif // ACTION_HPP

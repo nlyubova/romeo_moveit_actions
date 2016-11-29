@@ -1,3 +1,19 @@
+/*
+ * Copyright 2016 SoftBank Robotics Europe
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
 #include "romeo_moveit_actions/evaluation.hpp"
 #include "romeo_moveit_actions/toolsForObject.hpp"
 
@@ -9,13 +25,13 @@ Evaluation::Evaluation(ros::NodeHandle *nh,
                        const std::string &base_frame):
   verbose_(verbose),
   base_frame_(base_frame),
-  test_step_(0.0),
-  x_min_(0.0),
-  x_max_(0.0),
-  y_min_(0.0),
-  y_max_(0.0),
-  z_min_(0.0),
-  z_max_(0.0),
+  test_step_(0.0f),
+  x_min_(0.0f),
+  x_max_(0.0f),
+  y_min_(0.0f),
+  y_max_(0.0f),
+  z_min_(0.0f),
+  z_max_(0.0f),
   attempts_nbr_(2),
   planning_time_(20.0)
 {
@@ -33,34 +49,39 @@ Evaluation::Evaluation(ros::NodeHandle *nh,
 
   if (robot_name == "nao")
   {
-    test_step_ = (test_step_==0.0)?0.03:test_step_;
-    x_min_ = (x_min_==0.0)?0.1:x_min_;
-    x_max_ = (x_max_==0.0)?0.21:x_max_;
-    y_min_ = (y_min_==0.0)?0.12:y_min_;
-    y_max_ = (y_max_==0.0)?0.24:y_max_;
-    z_min_ = (z_min_==0.0)?-0.07:z_min_;
-    z_max_ = (z_max_==0.0)?0.05:z_max_;
+    test_step_ = (test_step_==0.0f)?0.03f:test_step_;
+    x_min_ = (x_min_==0.0f)?0.1f:x_min_;
+    x_max_ = (x_max_==0.0f)?0.21f:x_max_;
+    y_min_ = (y_min_==0.0f)?0.12f:y_min_;
+    y_max_ = (y_max_==0.0f)?0.24f:y_max_;
+    z_min_ = (z_min_==0.0f)?-0.07f:z_min_;
+    z_max_ = (z_max_==0.0f)?0.05f:z_max_;
   }
   else if (robot_name == "pepper")
   {
-    test_step_ = (test_step_==0.0)?0.02:test_step_;
-    x_min_ = (x_min_==0.0)?0.2:x_min_;
-    x_max_ = (x_max_==0.0)?0.3:x_max_;
-    y_min_ = (y_min_==0.0)?0.12:y_min_;
-    y_max_ = (y_max_==0.0)?0.26:y_max_;
-    z_min_ = (z_min_==0.0)?0.65:z_min_;
-    z_max_ = (z_max_==0.0)?0.85:z_max_;
+    test_step_ = (test_step_==0.0f)?0.02f:test_step_;
+    x_min_ = (x_min_==0.0f)?0.2f:x_min_;
+    x_max_ = (x_max_==0.0f)?0.3f:x_max_;
+    y_min_ = (y_min_==0.0f)?0.12f:y_min_;
+    y_max_ = (y_max_==0.0f)?0.26f:y_max_;
+    z_min_ = (z_min_==0.0f)?0.65f:z_min_;
+    z_max_ = (z_max_==0.0f)?0.85f:z_max_;
   }
   else if (robot_name == "romeo")
   {
-    test_step_ = (test_step_==0.0)?0.02:test_step_;
-    x_min_ = (x_min_==0.0)?0.38:x_min_;
-    x_max_ = (x_max_==0.0)?0.5:x_max_;
-    y_min_ = (y_min_==0.0)?0.12:y_min_;
-    y_max_ = (y_max_==0.0)?0.24:y_max_;
-    z_min_ = (z_min_==0.0)?-0.17:z_min_;
-    z_max_ = (z_max_==0.0)?-0.08:z_max_;
+    test_step_ = (test_step_==0.0f)?0.02f:test_step_;
+    x_min_ = (x_min_==0.0f)?0.38f:x_min_;
+    x_max_ = (x_max_==0.0f)?0.5f:x_max_;
+    y_min_ = (y_min_==0.0f)?0.12f:y_min_;
+    y_max_ = (y_max_==0.0f)?0.24f:y_max_;
+    z_min_ = (z_min_==0.0f)?-0.17f:z_min_;
+    z_max_ = (z_max_==0.0f)?-0.08f:z_max_;
   }
+
+  ROS_INFO_STREAM("The working space: "
+                  << "x[" << x_min_ << "; " << x_max_ << "], "
+                  << "y[" << y_min_ << "; " << y_max_ << "], "
+                  << "z[" << z_min_ << "; " << z_max_ << "]");
 }
 
 void Evaluation::init(const double &block_size_x,

@@ -1,12 +1,25 @@
+/*
+ * Copyright 2016 SoftBank Robotics Europe
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
 #ifndef SIMPLEACTIONS_HPP
 #define SIMPLEACTIONS_HPP
 
 #include <ros/ros.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
-
-//#include <cstdlib>
-//#include <mutex>          // std::mutex
 
 #include "romeo_moveit_actions/metablock.hpp"
 #include "romeo_moveit_actions/action.hpp"
@@ -50,112 +63,100 @@ protected:
   //! @brief check if the block exists
   bool checkObj(int &block_id);
 
-  //! @brief publish all collision blocks in MoveIt
-  void publishAllCollObj(std::vector<MetaBlock> *blocks);
-
   //! @brief move closer to the object
   void moveToObject(MetaBlock *block, const std::string &plan_group);
 
   //! @brief move to direction
   void moveTo(geometry_msgs::Twist *msg_twist);
 
-  //node handle
+  /** node handle */
   ros::NodeHandle nh_, nh_priv_;
 
-  //robot's name
+  /** robot's name */
   std::string robot_name_;
 
-  //verbosity
+  /** verbosity */
   bool verbose_;
 
-  //robot's base_frame
+  /** robot's base_frame */
   std::string base_frame_;
 
-  //dimenssion x of a default object
+  /** dimenssion x of a default object */
   double block_size_x_;
 
-  //dimenssion y of a default object
+  /** dimenssion y of a default object */
   double block_size_y_;
 
-  //shift of the robot's base to teh floor
+  /** shift of the robot's base to the floor */
   float floor_to_base_height_;
 
-  //allowing to use wheels
+  /** allowing to use wheels */
   bool use_wheels_;
 
-  //object processing
-  Objprocessing objproc_;
-
-  //evaluation of reaching/grasping
+  /** evaluation of reaching/grasping */
   Evaluation evaluation_;
 
-  //state of re-drawing the world
+  /** object processing */
+  Objprocessing objproc_;
+
+  /** state of re-drawing the world */
   bool env_shown_;
 
-  //name of the current support surface
+  /** name of the current support surface */
   std::string support_surface_;
 
-  //instance of an Action class for the left arm
+  /** instance of an Action class for the left arm */
   Action *action_left_;
 
-  //instance of an Action class for the right arm
+  /** instance of an Action class for the right arm */
   Action *action_right_;
 
-  //visual tools pointer used for scene visualization
+  /** visual tools pointer used for scene visualization */
   moveit_visual_tools::MoveItVisualToolsPtr visual_tools_;
 
-  //current MoveIt scene
+  /** current MoveIt scene */
   moveit::planning_interface::PlanningSceneInterface current_scene_;
 
-  //set of available objects
-  std::vector<MetaBlock> blocks_;
-
-  //set of available surfaces
+  /** set of available surfaces */
   std::vector<MetaBlock> blocks_surfaces_;
 
-  //subscriber to get objects from /collision_object
+  /** subscriber to get objects from /collision_object */
   ros::Subscriber sub_obj_coll_;
 
-  //publisher of objects poses
-  ros::Publisher pub_obj_poses_;
-
-  //publisher of the current object pose
+  /** publisher of the current object pose */
   ros::Publisher pub_obj_pose_;
 
-  //publisher of the currect target pose
+  /** publisher of the currect target pose */
   ros::Publisher pub_target_pose_;
 
-  //publisher of collision objects to /collision_world
+  /** publisher of collision objects to /collision_world */
   ros::Publisher pub_obj_moveit_;
 
-  //publisher of velocity
+  /** publisher of velocity */
   ros::Publisher pub_cmd_;
 
-  //current object position
+  /** current object position */
   geometry_msgs::PoseStamped msg_obj_pose_;
 
-  //all objects positions
-  geometry_msgs::PoseArray msg_obj_poses_;
-
-  //default object pose for the left arm
+  /** default object pose for the left arm */
   geometry_msgs::Pose pose_default_;
 
-  //default object pose for the right arm
+  /** default object pose for the right arm */
   geometry_msgs::Pose pose_default_r_;
 
-  //default object pose at zero
+  /** default object pose at zero */
   geometry_msgs::Pose pose_zero_;
 
-  //all successfully reached positions
+  /** all successfully reached positions */
   std::vector <geometry_msgs::Pose> stat_poses_success_;
 
-  //optimal base_link pose to easier grasp objects
+  /** optimal base_link pose to easier grasp objects */
   tf::Stamped<tf::Pose> pose_optimal_;
 
-  //transform listener
+  /** transform listener */
   tf::TransformListener listener_;
 
-  //processing rate
+  /** processing rate */
   ros::Rate rate_;
 };
 }

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2016 SoftBank Robotics Europe
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
 #include <Eigen/Eigen>
 #include <stdlib.h>
 
@@ -8,19 +24,20 @@ namespace moveit_simple_actions
 {
 
 MetaBlock::MetaBlock(const std::string name,
-          const geometry_msgs::Pose pose,
-          const uint shapeType,
-          const double size_x,
-          const double size_y,
-          const double size_z,
-          ros::Time timestamp):
+                     const geometry_msgs::Pose pose,
+                     const uint &shapeType,
+                     const float &size_x,
+                     const float &size_y,
+                     const float &size_z,
+                     ros::Time timestamp,
+                     std::string base_frame):
     name_(name),
     pose_(pose),
     size_x_(size_x),
     size_y_(size_y),
     size_z_(size_z),
     timestamp_(timestamp),
-    base_frame_("base_link")
+    base_frame_(base_frame)
 {
   if (pose_.position.y < 0)
     pose_.orientation.y *= -1;
@@ -63,17 +80,18 @@ MetaBlock::MetaBlock(const std::string name,
 }
 
 MetaBlock::MetaBlock(const std::string name,
-          const geometry_msgs::Pose pose,
-          const shape_msgs::Mesh mesh,
-          const object_recognition_msgs::ObjectType type,
-          ros::Time timestamp):
+                     const geometry_msgs::Pose pose,
+                     const shape_msgs::Mesh mesh,
+                     const object_recognition_msgs::ObjectType type,
+                     ros::Time timestamp,
+                     std::string base_frame):
     name_(name),
     pose_(pose),
     size_x_(0.03),
     size_y_(0.115),
     size_z_(0.01),
     timestamp_(timestamp),
-    base_frame_("odom")
+    base_frame_(base_frame)
 {
   pose_.orientation.x = -1.0;
   pose_.orientation.y = 0.0;
@@ -159,7 +177,7 @@ tf::Stamped<tf::Pose> MetaBlock::getTransform(tf::TransformListener *listener,
                       pose_.position.z)),
       ros::Time(0), base_frame_);
 
-  //the the pose
+  //transform the pose
   try
   {
     listener->transformPose(frame, tf_obj, pose_to_robot);

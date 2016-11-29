@@ -1,7 +1,26 @@
+/*
+ * Copyright 2016 SoftBank Robotics Europe
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
 #include <moveit_msgs/PickupGoal.h>
 #include <moveit_msgs/RobotTrajectory.h>
 #include <moveit_msgs/GetPositionFK.h>
+#include <moveit_msgs/GetPlanningScene.h>
+#include <moveit_msgs/PlanningScene.h>
 #include <moveit/robot_state/robot_state.h>
+#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 
 #include "romeo_moveit_actions/action.hpp"
 
@@ -13,10 +32,10 @@ Action::Action(ros::NodeHandle *nh,
                const std::string &hand,
                const std::string &robot_name):
   verbose_(false),
-  attempts_max_(3),
+  attempts_max_(3), //3
   planning_time_(20.0), //=5 in GUI
   planner_id_("RRTConnectkConfigDefault"), //RRTConnect
-  tolerance_min_(0.04), //tested on Pepper, works from 0.03
+  tolerance_min_(0.03), //tested on Pepper, works from 0.03
   tolerance_step_(0.02),
   max_velocity_scaling_factor_(1.0), //=1.0 in GUI
   dist_th_(0.08f),
@@ -85,6 +104,17 @@ Action::Action(ros::NodeHandle *nh,
   pub_plan_pose_ = nh->advertise<geometry_msgs::PoseStamped>("/pose_plan", 10);
   pub_plan_traj_ = nh->advertise<moveit_msgs::RobotTrajectory>("/trajectory", 10);
   client_fk_ = nh->serviceClient<moveit_msgs::GetPositionFK>("/compute_fk");
+
+  planning_scene_publisher_ = nh->advertise<moveit_msgs::PlanningScene>("/planning_scene", 1);
+
+  planning_scene_client_ = nh->serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
+
+  allowedCollisionLinks_ = move_group_->getRobotModel()->getJointModelGroup(grasp_data_.ee_group_)->getLinkModelNames();
+  allowedCollisionLinks_.push_back(grasp_data_.ee_parent_link_);
+  allowedCollisionLinks_.push_back("l_wrist");
+  allowedCollisionLinks_.push_back("r_wrist");
+  for(int i=0; i<allowedCollisionLinks_.size(); ++i)
+    ROS_INFO_STREAM(allowedCollisionLinks_[i]);
 }
 
 void Action::initVisualTools(moveit_visual_tools::MoveItVisualToolsPtr &visual_tools)
@@ -236,16 +266,16 @@ geometry_msgs::PoseStamped Action::getGraspPose(MetaBlock *block)
 
   goal.pose.orientation = grasp_data_.grasp_pose_to_eef_pose_.orientation;
 
-  if (block->base_frame_ == "base_link")
+  /*if (block->base_frame_ == "base_link")
   {
-    /*geometry_msgs::PoseStamped pose_transform = block->getTransformed(&listener_, "base_link");
+    geometry_msgs::PoseStamped pose_transform = block->getTransformed(&listener_, "base_link");
     goal.header.frame_id = pose_transform.header.frame_id;
 
     goal.pose = pose_transform.pose;
     goal.pose.position.x += grasp_data_.grasp_pose_to_eef_pose_.position.x;
     goal.pose.position.y += grasp_data_.grasp_pose_to_eef_pose_.position.y;
-    goal.pose.position.z += grasp_data_.grasp_pose_to_eef_pose_.position.z;*/
-  }
+    goal.pose.position.z += grasp_data_.grasp_pose_to_eef_pose_.position.z;
+  }*/
   return goal;
 }
 
@@ -372,14 +402,112 @@ void Action::releaseObject(MetaBlock *block)
   current_scene_.addCollisionObjects(coll_objects);
 }
 
+bool Action::setAllowedMoveItCollisionMatrix(moveit_msgs::AllowedCollisionMatrix& m)
+{
+    moveit_msgs::PlanningScene planning_scene;
+
+    if (planning_scene_publisher_.getNumSubscribers() < 1)
+    {
+        ROS_ERROR("Setting collision matrix won't have any effect!");
+        return false;
+    }
+    planning_scene.is_diff = true;
+    planning_scene.allowed_collision_matrix = m;
+    planning_scene_publisher_.publish(planning_scene);
+    return true;
+}
+
+bool Action::getCurrentMoveItAllowedCollisionMatrix(moveit_msgs::AllowedCollisionMatrix& matrix)
+{
+
+    moveit_msgs::GetPlanningScene srv;
+
+    srv.request.components.components = moveit_msgs::PlanningSceneComponents::ALLOWED_COLLISION_MATRIX;
+
+    if (!planning_scene_client_.call(srv))
+    {
+        ROS_ERROR("Can't obtain planning scene");
+        return false;
+    }
+
+    matrix = srv.response.scene.allowed_collision_matrix;
+    if (matrix.entry_names.empty())
+    {
+        ROS_ERROR("Collision matrix should not be empty");
+        return false;
+    }
+
+    //ROS_INFO_STREAM("Matrix: "<<matrix);
+    return true;
+}
+
+std::vector<std::string>::iterator Action::ensureExistsInACM(const std::string& name,
+                                                             moveit_msgs::AllowedCollisionMatrix& m,
+                                                             bool initFlag)
+{
+    std::vector<std::string>::iterator name_entry = std::find(m.entry_names.begin(), m.entry_names.end(), name);
+    if (name_entry == m.entry_names.end())
+    {
+        ROS_DEBUG_STREAM("Could not find object " << name
+                         << " in collision matrix. Inserting.");
+        expandMoveItCollisionMatrix(name, m, initFlag);
+        // re-assign the 'name_entry' iterator to the new entry_names place
+        name_entry = std::find(m.entry_names.begin(), m.entry_names.end(), name);
+        if (name_entry == m.entry_names.end())
+        {
+            ROS_ERROR("consistency, name should now be in map");
+        }
+    }
+    return name_entry;
+}
+
+void Action::expandMoveItCollisionMatrix(const std::string& name,
+                                         moveit_msgs::AllowedCollisionMatrix& m,
+                                         bool default_val)
+{
+
+    for (int i = 0; i < m.entry_names.size(); ++i)
+    {
+        m.entry_values[i].enabled.push_back(default_val);
+    }
+
+    m.entry_names.push_back(name);
+
+    moveit_msgs::AllowedCollisionEntry e;
+    e.enabled.assign(m.entry_names.size(), default_val);
+    m.entry_values.push_back(e);
+}
+
+void Action::updateCollisionMatrix(const std::string& name)
+{
+  moveit_msgs::AllowedCollisionMatrix m;
+  if (!getCurrentMoveItAllowedCollisionMatrix(m))
+    return;
+
+  //ROS_INFO_STREAM("Allowed collisoin: " << block->name_);
+  std::vector<std::string>::iterator objEntry = ensureExistsInACM(name, m, false);
+  int obj_idx = objEntry - m.entry_names.begin();
+
+  std::vector<std::string>::const_iterator it;
+  for (it = allowedCollisionLinks_.begin(); it != allowedCollisionLinks_.end(); ++it)
+  {
+      std::vector<std::string>::iterator linkEntry = ensureExistsInACM(*it, m, false);
+      int link_idx = linkEntry - m.entry_names.begin();
+      m.entry_values[link_idx].enabled[obj_idx] = true;
+      m.entry_values[obj_idx].enabled[link_idx] = true;
+  }
+  setAllowedMoveItCollisionMatrix(m);
+}
+
 bool Action::reachGrasp(MetaBlock *block,
                         const std::string surface_name,
                         int attempts_nbr,
+                        float tolerance_min,
                         double planning_time)
 {
   bool success(false);
 
-  if (verbose_)
+  //if (verbose_)
     ROS_INFO_STREAM("Reaching at position = "
                     << block->pose_.position.x << " "
                     << block->pose_.position.y << " "
@@ -391,17 +519,34 @@ bool Action::reachGrasp(MetaBlock *block,
   if (planning_time == 0.0)
     planning_time = planning_time_;
 
+  if (tolerance_min == 0.0)
+    tolerance_min = tolerance_min_;
+
+  updateCollisionMatrix(block->name_);
+
   //clean object temporally or allow to touch it
-  block->removeBlock(&current_scene_);
-  ros::Duration(0.2).sleep();
+  /*block->removeBlock(&current_scene_);
+  ros::Duration(0.2).sleep();*/
 
   geometry_msgs::PoseStamped pose = getGraspPose(block);
-sleep(1.0);
+  ros::Duration(1.0).sleep();
+
+//changes
+//block->pose_.position.y += 0.14;
+//end-changes
 
   if (!reachAction(pose, surface_name, attempts_nbr))
     return false;
+
+//changes
+/*ros::Duration(20.0).sleep();
+block->pose_.position.y -= 0.06;
+if (!reachAction(pose, surface_name, attempts_nbr))
+  return false;*/
+//end-changes
+
 sleep(8.0);
-  //compute the distance to teh object
+  //compute the distance to the object
   float dist = computeDistance(pose.pose);
   //close the hand, if the object is close enough
   if (dist < dist_th_)
@@ -411,13 +556,16 @@ sleep(8.0);
   }
 
   //publish the object
-  block->publishBlock(&current_scene_);
+  //block->publishBlock(&current_scene_);
 
   //attach the object
   if (success)
   {
     move_group_->attachObject(block->name_, grasp_data_.ee_parent_link_);
     object_attached_ = block->name_;
+
+    //lift the object
+
   }
 
   //if (verbose_)
@@ -596,6 +744,7 @@ bool Action::pickAction(MetaBlock *block,
                         const std::string surface_name,
                         int attempts_nbr,
                         double planning_time)
+
 {
   bool success(false);
 
