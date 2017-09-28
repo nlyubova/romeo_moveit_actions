@@ -196,7 +196,7 @@ tf::Stamped<tf::Pose> MetaBlock::getTransform(tf::TransformListener *listener,
 }
 
 geometry_msgs::PoseStamped MetaBlock::getTransformed(tf::TransformListener *listener,
-                                                   const std::string &frame)
+                                                     const std::string &frame)
 {
   geometry_msgs::PoseStamped pose_to_robot;
 

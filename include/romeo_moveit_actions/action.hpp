@@ -43,9 +43,11 @@
 namespace moveit_simple_actions
 {
 
+//! @brief Class for motion planning
 class Action
 {
 public:
+  //! @brief constructor
   Action(ros::NodeHandle *nh,
          const std::string &arm,
          const std::string &hand,
@@ -224,7 +226,7 @@ private:
   moveit::planning_interface::PlanningSceneInterface current_scene_;
 
   /** publisher for object poses */
-  ros::Publisher pub_obj_pose, pub_obj_poses;
+  ros::Publisher pub_obj_pose_, pub_obj_poses_;
 
   /** publish final pose */
   ros::Publisher pub_plan_pose_;

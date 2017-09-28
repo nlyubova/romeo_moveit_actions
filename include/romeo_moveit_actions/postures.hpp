@@ -23,37 +23,50 @@
 
 namespace moveit_simple_actions
 {
+//! @brief Class for posture processing
 class Posture
 {
 public:
+  //! @brief constructor
   Posture(const std::string robot_name,
           const std::string eef_name,
           const std::string group_name);
 
+  //! @brief initialize the hand pose
   void initHandPose(const double &value, const int &pose);
 
+  //! @brief define the head down pose
   bool poseHeadDown();
+
+  //! @brief define the head zero pose
   bool poseHeadZero();
 
+  //! @brief define the hand open pose
   bool poseHandOpen(const std::string &end_eff);
+
+  //! @brief define the hand close pose
   bool poseHandClose(const std::string &end_eff);
 
+  //! @brief define the hand pose
   bool poseHand(const std::string &end_eff,
                 const std::string &group,
                 const int &pose_id);
 
 private:
+  //! @brief go to the pose
   bool goToPose(const std::string group_name,
                 std::vector<double> *pose);
 
-  //pre-defined head poses
+  /** pre-defined head down pose */
   std::vector<double> pose_head_down_;
+
+  /** pre-defined hand zero pose */
   std::vector<double> pose_head_zero_;
 
-  //pre-defined hand poses
+  /** pre-defined hand pose */
   std::vector< std::vector<double> > pose_hand_;
 
-  //pre-defined arm poses
+  /** pre-defined arm pose */
   std::vector< std::vector<double> > pose_arm_;
 };
 }

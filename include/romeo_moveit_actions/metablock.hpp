@@ -39,6 +39,7 @@ typedef moveit::planning_interface::PlanningSceneInterface mscene;
 namespace moveit_simple_actions
 {
 
+//! @brief Class for objct construction
 class MetaBlock
 {
 public:
@@ -80,8 +81,9 @@ public:
   tf::Stamped<tf::Pose> getTransform(tf::TransformListener *listener,
                                      const std::string &frame);
 
+  //! @brief get the transform to base_link
   geometry_msgs::PoseStamped getTransformed(tf::TransformListener *listener,
-                                          const std::string &frame);
+                                            const std::string &frame);
 
   /** object name */
   std::string name_;

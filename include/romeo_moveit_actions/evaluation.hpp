@@ -28,10 +28,11 @@ typedef moveit_visual_tools::MoveItVisualToolsPtr mvistools;
 namespace moveit_simple_actions
 {
 
+//! @brief Class for evaluation
 class Evaluation
 {
 public:
-
+  //! @brief constructor
   Evaluation(ros::NodeHandle *nh,
              const bool &verbose,
              const std::string &base_frame);
@@ -85,62 +86,67 @@ protected:
   void printStat(const geometry_msgs::PoseArray &poses,
                  const int &targets_nbr);
 
-  //pointer to the action class for the left arm
+  /** pointer to the action class for the left arm */
   Action *action_left_;
 
-  //pointer to the action class for the right arm
+  /** pointer to the action class for the right arm */
   Action *action_right_;
 
-  //verbose or not
+  /** verbose or not */
   bool verbose_;
 
-  //robot's base_frame
+  /** robot's base_frame */
   std::string base_frame_;
 
-  //step to test the working space
+  /** step for testing the working space */
   float test_step_;
 
-  //number of attempts
+  /** number of testing attempts */
   int attempts_nbr_;
 
-  //planning time
+  /** default planning time */
   double planning_time_;
 
-  //size X of a default object
+  /** size X of a default object */
   double block_size_x_;
 
-  //size Y of a default object
+  /** size Y of a default object */
   double block_size_y_;
 
-  //shift of the robot's base to teh floor
+  /** shift of the robot's base to the floor */
   double floor_to_base_height_;
 
   /** working space in X dim min */
   float x_min_;
+
   /** working space in X dim max */
   float x_max_;
+
   /** working space in Y dim min */
   float y_min_;
+
   /** working space in Y dim max */
   float y_max_;
+
   /** working space in Z dim min */
   float z_min_;
+
   /** working space in Z dim max */
   float z_max_;
 
-  //default zero pose
+  /** default zero pose */
   geometry_msgs::Pose pose_zero_;
 
-  //successfully reached positions
+  /** successfully reached target poses */
   geometry_msgs::PoseArray poses_success_;
 
-  //total targets number
+  /** total number of targets */
   int targets_nbr_;
 
-  //default object to grasp
+  /** default object to grasp */
   MetaBlock *block_;
 
-  //default table
+  /** default table to grasp on */
   MetaBlock *table_;
 };
 }

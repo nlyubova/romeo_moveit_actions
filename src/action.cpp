@@ -98,8 +98,8 @@ Action::Action(ros::NodeHandle *nh,
   // Load Grasp generator
   simple_grasps_.reset(new moveit_simple_grasps::SimpleGrasps(moveit_visual_tools::MoveItVisualToolsPtr()));
 
-  pub_obj_pose = nh->advertise<geometry_msgs::PoseStamped>("/pose_target", 10);
-  pub_obj_poses = nh->advertise<geometry_msgs::PoseStamped>("/pose_targets", 10);
+  pub_obj_pose_ = nh->advertise<geometry_msgs::PoseStamped>("/pose_target", 10);
+  pub_obj_poses_ = nh->advertise<geometry_msgs::PoseStamped>("/pose_targets", 10);
 
   pub_plan_pose_ = nh->advertise<geometry_msgs::PoseStamped>("/pose_plan", 10);
   pub_plan_traj_ = nh->advertise<moveit_msgs::RobotTrajectory>("/trajectory", 10);
@@ -369,7 +369,7 @@ geometry_msgs::Pose Action::getPose()
   pose_now.pose.orientation = grasp_data_.grasp_pose_to_eef_pose_.orientation;
   //ROS_INFO_STREAM("current pose is " << pose_now);
 
-  pub_obj_pose.publish(pose_now);
+  pub_obj_pose_.publish(pose_now);
 
   return pose_now.pose;
 }
@@ -597,9 +597,9 @@ bool Action::reachAction(geometry_msgs::PoseStamped pose_target,
                              move_group_->getEndEffectorLink().c_str());
 
   //publish the target pose
-  pub_obj_pose.publish(pose_target);
+  pub_obj_pose_.publish(pose_target);
   /*sleep(0.5);
-  pub_obj_pose.publish(move_group_->getPoseTarget());*/
+  pub_obj_pose_.publish(move_group_->getPoseTarget());*/
 
   double tolerance = tolerance_min_;
   int attempts = 0;
@@ -1048,7 +1048,7 @@ bool Action::lift()
   current_plan_.reset(new moveit::planning_interface::MoveGroup::Plan());
 
   move_group_->setPoseTarget(pose, move_group_->getEndEffectorLink().c_str());
-  pub_obj_pose.publish(move_group_->getPoseTarget());
+  pub_obj_pose_.publish(move_group_->getPoseTarget());
 
   success = move_group_->plan(*current_plan_);
 

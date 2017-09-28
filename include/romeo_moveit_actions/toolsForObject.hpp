@@ -23,7 +23,7 @@
 
 namespace moveit_simple_actions
 {
-
+//! @brief set the pose
 void setPose(geometry_msgs::Pose *pose,
              const double &x,
              const double &y,
@@ -33,18 +33,23 @@ void setPose(geometry_msgs::Pose *pose,
              const double &oz,
              const double &ow);
 
+//! @brief set the pose
 void setPose(geometry_msgs::Pose *pose,
              const double &x,
              const double &y,
              const double &z);
 
+//! @brief find the object by name
 int findObj(std::vector<MetaBlock> *blocks,
             const std::string name);
 
+//! @brief get a list of objects
 std::vector<std::string> getObjectsList(const std::vector<MetaBlock> &blocks);
 
+//! @brief get a list of old objects
 std::vector<std::string> getObjectsOldList(std::vector<MetaBlock> *objects);
 
+//! @brief swap poses
 void swapPoses(geometry_msgs::Pose *pose1,
                geometry_msgs::Pose *pose2);
 }

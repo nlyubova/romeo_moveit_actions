@@ -35,12 +35,17 @@
 #include "romeo_moveit_actions/metablock.hpp"
 #include "romeo_moveit_actions/evaluation.hpp"
 
+typedef object_recognition_msgs::RecognizedObjectArray RecognizedObjArray;
+typedef actionlib::SimpleActionClient<object_recognition_msgs::ObjectRecognitionAction> ObjRecognitionActionClient;
+
 namespace moveit_simple_actions
 {
 
+//! @brief Class for recognized object processing
 class Objprocessing
 {
 public:
+  //! @brief constructor
   Objprocessing(ros::NodeHandle *nh,
                 Evaluation *evaluation);
 
@@ -48,7 +53,7 @@ public:
   bool triggerObjectDetection();
 
   //! @brief convert object recognition messages into blocks
-  void getRecognizedObjects(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg);
+  void getRecognizedObjects(const RecognizedObjArray::ConstPtr& msg);
 
   //! @brief get amount of blocks
   int getAmountOfBlocks()
@@ -97,7 +102,7 @@ protected:
   ros::ServiceClient get_model_mesh_srv_;
 
   /** object recognition client */
-  boost::scoped_ptr<actionlib::SimpleActionClient<object_recognition_msgs::ObjectRecognitionAction> > object_recognition_client_;
+  boost::scoped_ptr<ObjRecognitionActionClient> object_recognition_client_;
 
   /** if found object recognition server */
   bool found_object_recognition_client_;
