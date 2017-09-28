@@ -19,7 +19,6 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <moveit_msgs/GetPlanningScene.h>
 #include <moveit_msgs/DisplayTrajectory.h>
-#include <moveit/move_group_interface/move_group.h>
 
 //#include <move_base_msgs/MoveBaseAction.h>
 
