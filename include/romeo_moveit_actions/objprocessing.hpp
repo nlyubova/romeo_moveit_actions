@@ -25,7 +25,6 @@
 #include <tf/transform_listener.h>
 
 #include <geometry_msgs/PoseArray.h>
-#include <shape_tools/solid_primitive_dims.h>
 
 #include <actionlib/client/simple_action_client.h>
 
