@@ -27,7 +27,7 @@ namespace moveit_simple_actions
     std::cout << "\n \n"
               << "************************************************\n"
               << "Tutorial for simple actions with Romeo, NAO, and Pepper.\n"
-              << "You have choosen -" << robot_name << "- robot. \n\n"
+              << "You have chosen -" << robot_name << "- robot. \n\n"
 
               << "In your scene, you should see:\n"
               << "- a robot\n"
@@ -36,7 +36,7 @@ namespace moveit_simple_actions
 
               << "The scenario is\n"
               << "1) Try to grasp an object (for Romeo only) by pressing -g- + Enter.\n"
-              << "2) If the grasp is sucessful, place the object by typing -place-\n"
+              << "2) If the grasp is successful, place the object by typing -place-\n"
               << "   If not, try an approximative grasp by typing -u- + Enter.\n"
               << "3) Try to move the object right/left/top/down/farther/closer\n"
               << " by pressing -s- -f- -e- -x- -r- -c- keys and grasp again.\n"
@@ -60,7 +60,7 @@ namespace moveit_simple_actions
                     //<< " execute - execute the planned action, \n"
 
                     << " i - go to init pose (i1, i2, i3, i4, i0), \n"
-                    << " get_pose - show the pregrasp pose, \n"
+                    << " get_pose - show the pre-grasp pose, \n"
                     << " hand_open - open hand, \n"
                     << " hand_close - close hand, \n"
                     << " look_down - move the head to look down, \n"
