@@ -29,6 +29,7 @@
 namespace moveit_simple_actions
 {
 
+//! @brief Main class for running the pipeline
 class SimplePickPlace
 {
 public:

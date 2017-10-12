@@ -43,7 +43,7 @@
 namespace moveit_simple_actions
 {
 
-//! @brief Class for motion planning
+//! @brief Class allows motion planning based on move_group.
 class Action
 {
 public:
@@ -70,7 +70,7 @@ public:
   bool pickDefault(MetaBlock *block,
                    const std::string surface_name);
 
-  //! @brief plan a trajectory = computePlanButtonClicked in MoveIt
+  //! @brief plan a trajectory as computePlanButtonClicked in MoveIt
   bool graspPlan(MetaBlock *block,
                  const std::string surface_name);
 
