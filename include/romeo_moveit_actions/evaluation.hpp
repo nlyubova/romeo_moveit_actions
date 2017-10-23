@@ -28,7 +28,7 @@ typedef moveit_visual_tools::MoveItVisualToolsPtr mvistools;
 namespace moveit_simple_actions
 {
 
-//! @brief Class for evaluation
+//! @brief Class for evaluation the algorithm.
 class Evaluation
 {
 public:

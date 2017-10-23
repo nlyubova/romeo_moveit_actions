@@ -39,7 +39,7 @@ typedef moveit::planning_interface::PlanningSceneInterface mscene;
 namespace moveit_simple_actions
 {
 
-//! @brief Class for objct construction
+//! @brief Class for working with collision objects.
 class MetaBlock
 {
 public:

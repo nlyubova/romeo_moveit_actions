@@ -29,10 +29,11 @@
 namespace moveit_simple_actions
 {
 
-//! @brief Main class for running the pipeline
+//! @brief Class for running the main pipeline.
 class SimplePickPlace
 {
 public:
+  //! @brief constructor
   SimplePickPlace();
 
   //! @brief main cycle
@@ -94,11 +95,12 @@ protected:
   /** allowing to use wheels */
   bool use_wheels_;
 
-  /** evaluation of reaching/grasping */
-  Evaluation evaluation_;
 
   /** object processing */
-  Objprocessing objproc_;
+  ObjProcessor obj_proc_;
+
+  /** evaluation of reaching/grasping */
+  Evaluation evaluation_;
 
   /** state of re-drawing the world */
   bool env_shown_;
@@ -130,9 +132,6 @@ protected:
   /** publisher of the currect target pose */
   ros::Publisher pub_target_pose_;
 
-  /** publisher of collision objects to /collision_world */
-  ros::Publisher pub_obj_moveit_;
-
   /** publisher of velocity */
   ros::Publisher pub_cmd_;
 
@@ -150,6 +149,9 @@ protected:
 
   /** all successfully reached positions */
   std::vector <geometry_msgs::Pose> stat_poses_success_;
+
+  /** publisher of collision objects to /collision_world */
+  ros::Publisher pub_obj_moveit_;
 
   /** optimal base_link pose to easier grasp objects */
   tf::Stamped<tf::Pose> pose_optimal_;

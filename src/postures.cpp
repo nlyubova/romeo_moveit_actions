@@ -43,7 +43,6 @@ Posture::Posture(const std::string robot_name,
               move_group_plan.getCurrentState()->getRobotModel()->getJointModelGroup(
                   move_group_plan.getName()), pose_arm_init);
 
-  //ROS_INFO_STREAM("Posture:: pose_arm_init.size() = " << pose_arm_init.size());
   //initialize the left arm
   pose_arm_.resize(5);
   pose_arm_[0] = std::vector<double>(pose_arm_init);
@@ -131,7 +130,6 @@ Posture::Posture(const std::string robot_name,
   pose_hand_[0].resize(pose_hand.size(), 0.0);
   pose_hand_[1].resize(pose_hand.size(), 0.8);
 }
-
 
 void Posture::initHandPose(const double &value, const int &pose)
 {

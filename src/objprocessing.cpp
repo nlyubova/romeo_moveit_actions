@@ -25,8 +25,8 @@
 namespace moveit_simple_actions
 {
 
-Objprocessing::Objprocessing(ros::NodeHandle *nh,
-                             Evaluation *evaluation):
+ObjProcessor::ObjProcessor(ros::NodeHandle *nh,
+                           Evaluation *evaluation):
   nh_(nh),
   evaluation_(evaluation),
   OBJECT_RECOGNITION_ACTION("/recognize_objects"),
@@ -36,7 +36,7 @@ Objprocessing::Objprocessing(ros::NodeHandle *nh,
 {
   std::string mesh_srv_name("get_object_info");
   found_srv_obj_info_ = true;
-  found_object_recognition_client_ = false;
+  found_obj_reco_client_ = false;
 
   ros::Time start_time = ros::Time::now();
   while (!ros::service::waitForService(mesh_srv_name, ros::Duration(2.0)))
@@ -51,34 +51,37 @@ Objprocessing::Objprocessing(ros::NodeHandle *nh,
 
   if (found_srv_obj_info_)
   {
-    get_model_mesh_srv_ = nh_->serviceClient<object_recognition_msgs::GetObjectInformation>
+    get_model_mesh_srv_ = nh_->serviceClient<GetObjInfo>
       (mesh_srv_name, false);
   }
 
-  object_sub_ = nh_->subscribe<object_recognition_msgs::RecognizedObjectArray>(object_topic_, 1, &Objprocessing::getRecognizedObjects, this);
+  object_sub_ = nh_->subscribe<RecognizedObjArray>(object_topic_,
+                                                   1,
+                                                   &ObjProcessor::getRecognizedObjects,
+                                                   this);
 
   msg_obj_poses_.header.frame_id = target_frame_;
 
   pub_obj_poses_ = nh_->advertise<geometry_msgs::PoseArray>("/obj_poses", 1);
 }
 
-bool Objprocessing::triggerObjectDetection()
+bool ObjProcessor::triggerObjectDetection()
 {
-  if(!object_recognition_client_)
+  if(!obj_reco_client_)
   {
-    object_recognition_client_.reset(new actionlib::SimpleActionClient<object_recognition_msgs::ObjectRecognitionAction>(OBJECT_RECOGNITION_ACTION, false));
+    obj_reco_client_.reset(new ObjRecoActionClient(OBJECT_RECOGNITION_ACTION, false));
   }
-  if (!found_object_recognition_client_)
+  if (!found_obj_reco_client_)
   {
     try
     {
       ROS_DEBUG("Waiting for the Object recognition client");
-      waitForAction(object_recognition_client_,
+      waitForAction(obj_reco_client_,
                     *nh_,
                     ros::Duration(5, 0),
                     OBJECT_RECOGNITION_ACTION);
       ROS_DEBUG("Object recognition client is ready");
-      found_object_recognition_client_ = true;
+      found_obj_reco_client_ = true;
     }
     catch(std::runtime_error &ex)
     {
@@ -87,20 +90,20 @@ bool Objprocessing::triggerObjectDetection()
     }
   }
 
-  if (found_object_recognition_client_)
+  if (found_obj_reco_client_)
   {
     object_recognition_msgs::ObjectRecognitionGoal goal;
-    object_recognition_client_->sendGoal(goal);
-    if (!object_recognition_client_->waitForResult())
+    obj_reco_client_->sendGoal(goal);
+    if (!obj_reco_client_->waitForResult())
     {
       ROS_DEBUG_STREAM("Object recognition client returned early");
       return false;
     }
-    if (object_recognition_client_->getState() != actionlib::SimpleClientGoalState::SUCCEEDED)
+    if (obj_reco_client_->getState() != actionlib::SimpleClientGoalState::SUCCEEDED)
     {
       ROS_DEBUG_STREAM("Fail: "
-                       << object_recognition_client_->getState().toString() << ":"
-                       << object_recognition_client_->getState().getText());
+                       << obj_reco_client_->getState().toString() << ":"
+                       << obj_reco_client_->getState().getText());
       return true;
     }
   }
@@ -108,7 +111,7 @@ bool Objprocessing::triggerObjectDetection()
   return false;
 }
 
-bool Objprocessing::getMeshFromDB(object_recognition_msgs::GetObjectInformation &obj_info)
+bool ObjProcessor::getMeshFromDB(GetObjInfo &obj_info)
 {
   if (!found_srv_obj_info_)
     return false;
@@ -121,7 +124,7 @@ bool Objprocessing::getMeshFromDB(object_recognition_msgs::GetObjectInformation 
   return true;
 }
 
-void Objprocessing::getRecognizedObjects(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg)
+void ObjProcessor::getRecognizedObjects(const RecognizedObjArray::ConstPtr& msg)
 {
   if (msg->objects.empty())
     return;
@@ -132,7 +135,7 @@ void Objprocessing::getRecognizedObjects(const object_recognition_msgs::Recogniz
   try
   {
     int obj_id = 0;
-    object_recognition_msgs::RecognizedObjectArray::_objects_type::const_iterator it;
+    RecognizedObjArray::_objects_type::const_iterator it;
     for (it = msg->objects.begin(); it != msg->objects.end(); ++it)
     {
       geometry_msgs::PoseStamped msg_obj_cam_, msg_obj_pose;
@@ -149,7 +152,7 @@ void Objprocessing::getRecognizedObjects(const object_recognition_msgs::Recogniz
                       << msg_obj_pose.pose.position.y << " "
                       << msg_obj_pose.pose.position.z);
 
-      object_recognition_msgs::GetObjectInformation obj_info;
+      GetObjInfo obj_info;
       obj_info.request.type = it->type;
 
       //check if exists
@@ -222,7 +225,7 @@ void Objprocessing::getRecognizedObjects(const object_recognition_msgs::Recogniz
   //ROS_INFO_STREAM("blocks_.size() " << blocks_.size() << " " << msg_obj_poses_.poses.size());
 }
 
-void Objprocessing::publishAllCollObj(std::vector<MetaBlock> *blocks)
+void ObjProcessor::publishAllCollObj(std::vector<MetaBlock> *blocks)
 {
   if (blocks->empty())
     return;
@@ -237,7 +240,7 @@ void Objprocessing::publishAllCollObj(std::vector<MetaBlock> *blocks)
     current_scene_.addCollisionObjects(coll_objects);
 }
 
-MetaBlock * Objprocessing::getBlock(const int &id)
+MetaBlock * ObjProcessor::getBlock(const int &id)
 {
   MetaBlock * block;
   if (id < blocks_.size())
@@ -245,7 +248,7 @@ MetaBlock * Objprocessing::getBlock(const int &id)
   return block;
 }
 
-void Objprocessing::addBlock(const MetaBlock &block)
+void ObjProcessor::addBlock(const MetaBlock &block)
 {
   blocks_.push_back(block);
 
@@ -253,7 +256,7 @@ void Objprocessing::addBlock(const MetaBlock &block)
 }
 
 //clean the object list based on the timestamp
-void Objprocessing::cleanObjects(const bool list_erase)
+void ObjProcessor::cleanObjects(const bool list_erase)
 {
   std::vector<std::string> objects_list = getObjectsOldList(&blocks_);
   current_scene_.removeCollisionObjects(objects_list);

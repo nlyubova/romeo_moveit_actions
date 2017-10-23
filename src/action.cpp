@@ -343,9 +343,9 @@ geometry_msgs::Pose Action::getPose()
 {
   geometry_msgs::PoseStamped pose_now;
   pose_now.header.stamp = ros::Time::now();
+  pose_now.header.frame_id = grasp_data_.base_link_;
 
   pose_now.pose = move_group_->getCurrentPose().pose;
-  pose_now.header.frame_id = grasp_data_.base_link_;
 
   /*geometry_msgs::Pose pose = move_group_->getCurrentPose().pose;
   //ROS_INFO_STREAM("current pose is " << pose_now);
@@ -419,7 +419,6 @@ bool Action::setAllowedMoveItCollisionMatrix(moveit_msgs::AllowedCollisionMatrix
 
 bool Action::getCurrentMoveItAllowedCollisionMatrix(moveit_msgs::AllowedCollisionMatrix& matrix)
 {
-
     moveit_msgs::GetPlanningScene srv;
 
     srv.request.components.components = moveit_msgs::PlanningSceneComponents::ALLOWED_COLLISION_MATRIX;
@@ -555,9 +554,6 @@ sleep(8.0);
     success = true;
   }
 
-  //publish the object
-  //block->publishBlock(&current_scene_);
-
   //attach the object
   if (success)
   {
@@ -657,10 +653,10 @@ bool Action::graspPlanAllPossible(MetaBlock *block,
   std::vector<geometry_msgs::Pose> targets =
       configureForPlanning(generateGrasps(block));
 
+  moveit::planning_interface::MoveGroup::Plan plan;
+
   if (targets.size() == 0)
     return false;
-
-  moveit::planning_interface::MoveGroup::Plan plan;
 
   double tolerance_cur =  move_group_->getGoalPositionTolerance();
   move_group_->setGoalTolerance(0.1);
@@ -744,7 +740,6 @@ bool Action::pickAction(MetaBlock *block,
                         const std::string surface_name,
                         int attempts_nbr,
                         double planning_time)
-
 {
   bool success(false);
 
@@ -761,6 +756,7 @@ bool Action::pickAction(MetaBlock *block,
     planning_time = planning_time_;
 
   std::vector<moveit_msgs::Grasp> grasps = generateGrasps(block);
+
   if (grasps.size() == 0)
     return false;
 
@@ -772,6 +768,7 @@ bool Action::pickAction(MetaBlock *block,
 
   double tolerance = tolerance_min_;
   int attempts = 0;
+
   //find a planning solution while increasing tolerance
   while (!success && (attempts < attempts_nbr))
   {
@@ -787,6 +784,7 @@ bool Action::pickAction(MetaBlock *block,
     }
     ++attempts;
   }
+
   move_group_->setGoalTolerance(tolerance_min_);
 
   if (verbose_ & success)
@@ -833,7 +831,7 @@ bool Action::placeAction(MetaBlock *block,
     pre_place_approach.direction.vector.x = 0;
     pre_place_approach.direction.vector.y = 0;
     //Approach direction (negative z axis)  // TODO: document this assumption
-    pre_place_approach.direction.vector.z = 0.1; //-1 //
+    pre_place_approach.direction.vector.z = 0.1; //-1
     place_loc.pre_place_approach = pre_place_approach;
 
     // Retreat
@@ -911,10 +909,11 @@ void Action::publishPlanInfo(moveit::planning_interface::MoveGroup::Plan plan,
         ROS_INFO_STREAM("Distance of last trajectory pose from target pose: "
                         << error << " meters");
       }
-    }else
+    }
+    else
     {
-        ROS_WARN_STREAM("No result of service /compute_fk \nMoveitCodeError: "
-                        << srv.response.error_code);
+      ROS_WARN_STREAM("No result of service /compute_fk \nMoveitCodeError: "
+                      << srv.response.error_code);
     }
   }
   else
@@ -975,9 +974,10 @@ void Action::setFlag(int flag)
     flag_ = flag;
     if(verbose_)
       ROS_INFO_STREAM("Flag set to " << flag);
-  }else
-      ROS_WARN_STREAM("No value: " << flag
-                      << " for flag, will remain as: " << flag_);
+  }
+  else
+    ROS_WARN_STREAM("No value: " << flag
+                    << " for flag, will remain as: " << flag_);
 }
 
 void Action::detachObject(const std::string &block_name)

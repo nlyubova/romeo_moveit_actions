@@ -21,8 +21,6 @@
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <moveit/move_group_interface/move_group.h>
 
-//#include <move_base_msgs/MoveBaseAction.h>
-
 #include "romeo_moveit_actions/simplepickplace.hpp"
 #include "romeo_moveit_actions/tools.hpp"
 #include "romeo_moveit_actions/toolsForObject.hpp"
@@ -92,7 +90,7 @@ namespace moveit_simple_actions
       floor_to_base_height_(-1.0),
       env_shown_(false),
       evaluation_(&nh_, verbose_, base_frame_),
-      objproc_(&nh_priv_, &evaluation_),
+      obj_proc_(&nh_priv_, &evaluation_),
       use_wheels_(true),
       rate_(12.0)
   {
@@ -103,6 +101,7 @@ namespace moveit_simple_actions
           "/collision_object", 100, &SimplePickPlace::getCollisionObjects, this);*/
 
     pub_obj_pose_ = nh_.advertise<geometry_msgs::PoseStamped>("/pose_current", 1);
+
     pub_obj_moveit_ = nh_.advertise<moveit_msgs::CollisionObject>("/collision_object", 10);
     pub_target_pose_ = nh_.advertise<geometry_msgs::PoseStamped>("/obj_pretarget", 1);
 
@@ -181,18 +180,18 @@ namespace moveit_simple_actions
 
   void SimplePickPlace::createObj(const MetaBlock &block)
   {
-    objproc_.addBlock(block);
+    obj_proc_.addBlock(block);
     msg_obj_pose_.header.frame_id = block.base_frame_;
     msg_obj_pose_.pose = block.pose_;
     pub_obj_pose_.publish(msg_obj_pose_);
 
     //publish the collision object
-    //objproc_.blocks_->back().publishBlock(&current_scene_);
+    //obj_proc_.blocks_->back().publishBlock(&current_scene_);
   }
 
   bool SimplePickPlace::checkObj(int &block_id)
   {
-    if ((block_id >= 0) && (block_id < objproc_.getAmountOfBlocks()))
+    if ((block_id >= 0) && (block_id < obj_proc_.getAmountOfBlocks()))
       return true;
     else
       false;
@@ -227,37 +226,38 @@ namespace moveit_simple_actions
     while(ros::ok())
     {
       //if there are some objects, take the first
-      if ((block_id == -1) && (objproc_.getAmountOfBlocks() > 0))
+      if ((block_id == -1) && (obj_proc_.getAmountOfBlocks() > 0))
         block_id = 0;
       //if the object does not exist
-      else if (block_id >= objproc_.getAmountOfBlocks())
+      else if (block_id >= obj_proc_.getAmountOfBlocks())
       {
         ROS_WARN_STREAM("The object " << block_id << " does not exist");
         block_id = -1;
-        objproc_.cleanObjects(true);
+        obj_proc_.cleanObjects(true);
       }
 
       if (block_id >= 0)
       {
-        block = objproc_.getBlock(block_id);
+        block = obj_proc_.getBlock(block_id);
         if (block == NULL)
         {
           ROS_INFO_STREAM("the object " << block_id << " does not exist");
           block_id = -1;
           continue;
         }
+
         //update the object's pose
         msg_obj_pose_.header.frame_id = block->base_frame_;
         msg_obj_pose_.pose = block->pose_;
         pub_obj_pose_.publish(msg_obj_pose_);
         ROS_INFO_STREAM("The current active object is "
                         << block->name_
-                        << " out of " << objproc_.getAmountOfBlocks());
+                        << " out of " << obj_proc_.getAmountOfBlocks());
 
         geometry_msgs::PoseStamped pose_target = action->getGraspPose(block);
         pub_target_pose_.publish(pose_target);
 
-        //objproc_.publishAllCollObj(&blocks_);
+        //obj_proc_.publishAllCollObj(&blocks_);
       }
 
       //ROS_INFO_STREAM("What do you want me to do ?");
@@ -269,6 +269,7 @@ namespace moveit_simple_actions
       // Pick the object with a grasp generator
       if ((checkObj(block_id)) && (actionName == "g"))
       {
+        ROS_INFO_STREAM(" --- block->pose_ " << block->pose_);
         bool success = action->pickAction(block, support_surface_);
 
         if(success)
@@ -309,13 +310,13 @@ namespace moveit_simple_actions
       //clean a virtual box on the left arm side
       else if (actionName == "lb")
       {
-        objproc_.cleanObjects();
+        obj_proc_.cleanObjects();
         createObj(MetaBlock("Virtual1", pose_default_, shape_msgs::SolidPrimitive::BOX, block_size_x_, block_size_y_, 0.0));
       }
       //create a virtual cylinder on the left hand side
       else if (actionName == "lc")
       {
-        objproc_.cleanObjects();
+        obj_proc_.cleanObjects();
         createObj(MetaBlock("Virtual1", pose_default_, shape_msgs::SolidPrimitive::CYLINDER, block_size_x_, block_size_y_, 0.0));
         if (action->plan_group_.find("right") != std::string::npos)
           switchArm(&action);
@@ -323,13 +324,13 @@ namespace moveit_simple_actions
       //create a virtual box on the right hand side
       else if (actionName == "rb")
       {
-        objproc_.cleanObjects();
+        obj_proc_.cleanObjects();
         createObj(MetaBlock("Virtual1", pose_default_r_, shape_msgs::SolidPrimitive::BOX, block_size_x_, block_size_y_, 0.0));
       }
       //create a virtual cylinder on the right hand side
       else if (actionName == "rc")
       {
-        objproc_.cleanObjects();
+        obj_proc_.cleanObjects();
         createObj(MetaBlock("Virtual1", pose_default_r_, shape_msgs::SolidPrimitive::CYLINDER, block_size_x_, block_size_y_, 0.0));
         if (action->plan_group_.find("left") != std::string::npos)
         {
@@ -337,27 +338,28 @@ namespace moveit_simple_actions
           action->poseHand(2);
         }
       }
-      else if (actionName == "d") //detect objects
+      //detect objects
+      else if (actionName == "d")
       {
-        objproc_.cleanObjects();
+        obj_proc_.cleanObjects();
 
-        objproc_.triggerObjectDetection();
+        obj_proc_.triggerObjectDetection();
       }
       //continuous object detection
       else if (actionName == "dd")
       {
-        objproc_.cleanObjects(true);
+        obj_proc_.cleanObjects(true);
 
         ROS_INFO_STREAM("Object detection is running...");
         ros::Time start_time = ros::Time::now();
-        while ((objproc_.getAmountOfBlocks() <= 0)
+        while ((obj_proc_.getAmountOfBlocks() <= 0)
                && (ros::Time::now()-start_time < ros::Duration(10.0)))
         {
-          objproc_.triggerObjectDetection();
+          obj_proc_.triggerObjectDetection();
           rate_.sleep();
         }
         if (verbose_)
-          ROS_INFO_STREAM(objproc_.getAmountOfBlocks() << " objects detected");
+          ROS_INFO_STREAM(obj_proc_.getAmountOfBlocks() << " objects detected");
 
         // publish all objects as collision blocks
         //publishAllCollObj(&blocks_);
@@ -457,10 +459,10 @@ namespace moveit_simple_actions
       else if (actionName == "test_pick")
       {
         cleanObjects(&blocks_surfaces_, false);
-        objproc_.cleanObjects();
+        obj_proc_.cleanObjects();
         evaluation_.testReach(nh_,
                               &pub_obj_pose_,
-                              &objproc_.pub_obj_poses_,
+                              &obj_proc_.pub_obj_poses_,
                               &pub_obj_moveit_,
                               true);
         //draw the table again
@@ -472,10 +474,10 @@ namespace moveit_simple_actions
       else if (actionName == "test_reach")
       {
         cleanObjects(&blocks_surfaces_, false);
-        objproc_.cleanObjects();
+        obj_proc_.cleanObjects();
         evaluation_.testReach(nh_,
                               &pub_obj_pose_,
-                              &objproc_.pub_obj_poses_,
+                              &obj_proc_.pub_obj_poses_,
                               &pub_obj_moveit_,
                               false);
         //draw the table again
@@ -541,7 +543,7 @@ namespace moveit_simple_actions
         pose.position.y += 0.05;
         block->updatePose(&current_scene_, pose);
       }
-      //move the virtual object
+      //move the virtual object farther
       else if (checkObj(block_id) && ((actionName == "c") || (actionName == "farther")))
       {
         geometry_msgs::Pose pose(block->pose_);

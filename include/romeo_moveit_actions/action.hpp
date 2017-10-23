@@ -43,7 +43,7 @@
 namespace moveit_simple_actions
 {
 
-//! @brief Class allows motion planning based on move_group.
+//! @brief Class for motion planning based on move_group.
 class Action
 {
 public:
@@ -117,9 +117,6 @@ public:
   //! @brief detach the collision object
   void detachObject(const std::string &block_name);
 
-  //! @brief attach the collision object
-  void attachObject(const std::string &block_name);
-
   //! @brief get the base_link
   std::string getBaseLink();
 
@@ -149,6 +146,9 @@ public:
   const std::string plan_group_;
 
 private:
+  //! @brief attach the collision object
+  void attachObject(const std::string &block_name);
+
   //! @brief publish the planning info
   void publishPlanInfo(moveit::planning_interface::MoveGroup::Plan plan,
                        geometry_msgs::Pose pose_target);

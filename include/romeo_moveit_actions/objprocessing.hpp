@@ -35,48 +35,49 @@
 #include "romeo_moveit_actions/evaluation.hpp"
 
 typedef object_recognition_msgs::RecognizedObjectArray RecognizedObjArray;
-typedef actionlib::SimpleActionClient<object_recognition_msgs::ObjectRecognitionAction> ObjRecognitionActionClient;
+typedef actionlib::SimpleActionClient<object_recognition_msgs::ObjectRecognitionAction> ObjRecoActionClient;
+typedef object_recognition_msgs::GetObjectInformation GetObjInfo;
 
 namespace moveit_simple_actions
 {
 
-//! @brief Class for recognized object processing
-class Objprocessing
+//! @brief Class for processing objects recognized by ORK.
+class ObjProcessor
 {
 public:
   //! @brief constructor
-  Objprocessing(ros::NodeHandle *nh,
-                Evaluation *evaluation);
+  ObjProcessor(ros::NodeHandle *nh,
+               Evaluation *evaluation);
 
   //! @brief trigger object detection client
   bool triggerObjectDetection();
 
-  //! @brief convert object recognition messages into blocks
+  //! @brief convert object recognition messages into collision objects
   void getRecognizedObjects(const RecognizedObjArray::ConstPtr& msg);
 
-  //! @brief get amount of blocks
+  //! @brief get amount of objects
   int getAmountOfBlocks()
   {
     return blocks_.size();
   }
 
-  //! @brief get a block by id
+  //! @brief get an object by id
   MetaBlock * getBlock(const int &id);
 
-  //! @brief add a new block to the end
+  //! @brief add a new object to the end
   void addBlock(const MetaBlock &block);
 
-  //! @brief clean the object list based on the timestamp
+  //! @brief clean the list of objects based on the timestamp
   void cleanObjects(const bool list_erase=true);
 
-  /** publisher of objects poses */
+  /** publisher of objects' poses */
   ros::Publisher pub_obj_poses_;
 
 protected:
   //! @brief get the object's mesh from the DB
-  bool getMeshFromDB(object_recognition_msgs::GetObjectInformation &obj_info);
+  bool getMeshFromDB(GetObjInfo &obj_info);
 
-  //! @brief publish all collision blocks in MoveIt
+  //! @brief publish all collision objects in MoveIt
   void publishAllCollObj(std::vector<MetaBlock> *blocks);
 
   /** node handle */
@@ -101,10 +102,10 @@ protected:
   ros::ServiceClient get_model_mesh_srv_;
 
   /** object recognition client */
-  boost::scoped_ptr<ObjRecognitionActionClient> object_recognition_client_;
+  boost::scoped_ptr<ObjRecoActionClient> obj_reco_client_;
 
   /** if found object recognition server */
-  bool found_object_recognition_client_;
+  bool found_obj_reco_client_;
 
   /** subscriber to object recognition topic */
   ros::Subscriber object_sub_;
